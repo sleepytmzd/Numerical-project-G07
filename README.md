@@ -102,10 +102,12 @@ Numerical-project-G07/
 
 | Figure | Generating Script | Input CSV(s) |
 |---|---|---|
-| `baseline_barrier_ci.png` | `experiments/exp_baseline.py` | `results/raw/aritra_baseline.csv` |
-| `baseline_asian_call_ci.png` | `experiments/exp_baseline.py` | `results/raw/aritra_baseline.csv` |
-| `baseline_asian_put_ci.png` | `experiments/exp_baseline.py` | `results/raw/aritra_baseline.csv` |
-| `coverage_table.png` | `experiments/exp_baseline.py` | `results/raw/aritra_baseline.csv` |
+| `baseline_barrier_ci.png` | `experiments/exp_baseline.py` | `results/raw/nafis_baseline.csv` |
+| `baseline_asian_call_ci.png` | `experiments/exp_baseline.py` | `results/raw/nafis_baseline.csv` |
+| `baseline_asian_put_ci.png` | `experiments/exp_baseline.py` | `results/raw/nafis_baseline.csv` |
+| `baseline_rmse_vs_n.png` | `experiments/exp_baseline.py` | `results/raw/nafis_baseline.csv` |
+| `baseline_scheme_comparison.png` | `experiments/exp_baseline.py` | `results/raw/nafis_baseline.csv` |
+| `coverage_table.png` | `experiments/exp_baseline.py` | `results/raw/nafis_baseline.csv` |
 | `cv_asian_vrf.png` | `experiments/exp_control.py` | `results/raw/tamzeed_control.csv` |
 | `cv_rho_vs_vrf.png` | `experiments/exp_control.py` | `results/raw/tamzeed_control.csv` |
 | `cv_barrier_collapse.png` | `experiments/exp_control.py` | `results/raw/tamzeed_control.csv` |
