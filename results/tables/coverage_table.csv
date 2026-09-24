@@ -1,9 +1,9 @@
 scenario,option,method,coverage,n_obs
-asian_30d,call,antithetic,92.0%,100
-asian_30d,call,plain,93.0%,100
-paper_asian_geo,call,antithetic,93.0%,100
-paper_asian_geo,call,plain,98.0%,100
-paper_asian_geo,put,antithetic,91.0%,100
-paper_asian_geo,put,plain,92.0%,100
-paper_barrier,call,antithetic,93.0%,100
-paper_barrier,call,plain,96.0%,100
+asian_30d,call,antithetic,93.0%,100
+asian_30d,call,plain,98.0%,100
+paper_asian_geo,call,antithetic,91.0%,100
+paper_asian_geo,call,plain,94.0%,100
+paper_asian_geo,put,antithetic,95.0%,100
+paper_asian_geo,put,plain,96.0%,100
+paper_barrier,call,antithetic,94.0%,100
+paper_barrier,call,plain,98.0%,100

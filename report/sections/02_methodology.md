@@ -65,7 +65,7 @@ itself, so payoffs stay reusable across scenarios with different `r`.
   for an up-barrier), not via a continuity correction. This is intentionally
   different from the paper's closed-form benchmark, which assumes continuous
   monitoring — the gap between the two is the discretization bias discussed in
-  §3.4 below and revisited with variance reduction in Stage 3.
+  §3.5 below and revisited with variance reduction in Stage 3.
 - `geometric_asian_payoff(paths, K, option, avg_start_idx)` — geometric average
   of `paths[:, avg_start_idx:]`. `avg_start_idx = 1` averages all 252 monitoring
   dates (excluding `S0`); the last-30-day scenario sets
@@ -100,19 +100,24 @@ variance, so the standard error is instead computed from the `n_paths/2`
 **pair averages** `(Y_i + Y_i')/2`, which *are* i.i.d. across pairs. `extra`
 records the pair count and the empirical correlation `rho_pair = corr(Y, Y')`
 between the two antithetic legs — a negative `rho_pair` is what produces
-variance reduction, and a value near 0 signals the technique isn't helping for
-that payoff (a case worth noting explicitly when it happens rather than
-treating antithetic as unconditionally good).
+variance reduction. For payoffs that are monotone in the driving normals,
+which covers every payoff in this project, `rho_pair ≤ 0` is guaranteed, so
+antithetic can never *increase* variance at equal path count. How large the
+gain is depends on how close to linear the payoff is (§3.3).
 
 Both estimators generate paths in chunks (default 8192 paths per block, see
 §2.5) and time only the estimation loop with `time.perf_counter()`.
 
 **Seeding.** `make_seed_seq(experiment_id, *keys)` derives a deterministic
 `np.random.SeedSequence` from the shared `BASE_SEED = 402`, keyed by a CRC32 of
-the experiment id plus arbitrary integer keys (case index, scheme, method,
-`n_paths`, replicate id). This is never `np.random.seed` — every replicate gets
-its own independent, reproducible stream, and the same key always reproduces
-the same run. `seed_int()` folds a `SeedSequence` down to one integer for the
+the experiment id plus integer keys. `run_sweep` passes CRC32s of the scenario
+name, option type and method name, then `n_paths` and the replicate id. The keys
+are built from names, not list positions, so two separate `run_sweep` calls can
+never collide. They use CRC32 rather than Python's `hash()`, which is salted per
+process and would make runs irreproducible. This is never `np.random.seed`.
+Every replicate gets its own independent, reproducible stream, and the same key
+always reproduces the same run; `tests/test_estimators.py` checks this across
+two processes with different hash salts. `seed_int()` folds a `SeedSequence` down to one integer for the
 `seed` column in the results CSV.
 
 ### 2.4 Benchmark infrastructure
@@ -136,7 +141,7 @@ the same run. `seed_int()` folds a `SeedSequence` down to one integer for the
   lognormal option price. At full averaging this is checked (in
   `tests/test_paths.py`) to reproduce Stage 1's `geometric_asian_closed_form(m=252)`
   exactly; it is also the *only* correct benchmark for `asian_30d`, since
-  Stage 1's formula only covers full-window averaging (see §3.3 — the base
+  Stage 1's formula only covers full-window averaging (see §3.4 — the base
   paper's claim that the 30-day price is "identical" to the full-average price
   is false and easily checked). For arithmetic Asians it returns `None` (no
   closed form — that is the whole point of Stage 3's control-variate headline
@@ -144,11 +149,13 @@ the same run. `seed_int()` folds a `SeedSequence` down to one integer for the
 - `run_sweep(person, experiment_id, cases, methods, n_grid, R, n_steps, schemes,
   method_params)` loops `case × scheme × method × N × replicate`, builds a
   fresh `SeedSequence` per cell, calls the registered estimator, and logs one
-  row per replicate via Stage 1's `log_result`. It uses **common random
-  numbers** — for a fixed `(case, N, replicate)` every method's seed differs
-  only by the method-name key, but if two estimators consume `normals`
-  identically (e.g. plain vs. a future biased-drift method that still draws
-  one `Z` per path) the paired comparison is still meaningful.
+  row per replicate via Stage 1's `log_result`.
+  - The discretization **scheme is deliberately left out of the seed key**. All
+    schemes therefore see the same normals, and scheme comparisons are paired
+    (common random numbers).
+  - Different methods, scenarios and N values get independent streams, so a
+    comparison between two methods is a comparison of independent samples. The
+    bootstrap below relies on that.
 - `summarize(df)` aggregates raw per-replicate rows into one row per
   `(scenario, option, scheme, method, n_paths)` cell: mean price, **variance
   measured across the `R` replicates** (never taken from a single estimator's
@@ -157,10 +164,20 @@ the same run. `seed_int()` folds a `SeedSequence` down to one integer for the
   coverage (fraction of replicates whose 95% CI contains the exact price).
 - `bootstrap_efficiency_ratio(df, keys_a, keys_b)` bootstraps the ratio of two
   methods' efficiencies by resampling replicates with replacement within each
-  matched cell (default 2000 resamples), returning a point estimate and a 95%
-  percentile CI — because `R = 20` replicates gives roughly 32% relative
-  standard error on a variance estimate (per WORKPLAN §1.7.3), an unqualified
-  point-estimate speedup number is not meaningful on its own.
+  matched cell (default 2000 resamples). It returns a point estimate and a 95%
+  percentile CI. `R = 20` replicates give roughly 32% relative standard error on
+  a variance estimate (WORKPLAN §1.7.3), so a bare point-estimate speedup means
+  little.
+  - Each side must select **exactly one** `(scenario, option, scheme, method,
+    n_paths)` cell; otherwise the function raises. Pooling replicates across N
+    mixes variance scales and produces a meaningless ratio. An early version of
+    our own analysis made this mistake (§3.3).
+  - For estimators whose within-run SE is valid (plain and antithetic, both
+    built on i.i.d. units), the ratio of mean squared SEs is a far more precise
+    variance-reduction estimate than the 20-replicate bootstrap. §3.3 reports
+    both.
+  - RQMC is different: its within-run SE is not valid, and only the
+    across-replicate variance can be used.
 - `fit_loglog_slope(n, y)` is a small helper used throughout for RMSE-vs-N and
   bias-vs-step-size log-log fits.
 
