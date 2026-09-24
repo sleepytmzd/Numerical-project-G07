@@ -147,10 +147,13 @@ class TestPayoffs:
         mc, se = disc * payoff.mean(), disc * payoff.std(ddof=1) / math.sqrt(n)
         assert abs(mc - exact_price(scen, "call", m)) < 3 * se
 
-    def test_arithmetic_asian_not_yet_implemented(self):
+    def test_arithmetic_asian_dispatcher(self):
         scen = SCENARIOS["asian_arith"]
-        with pytest.raises(NotImplementedError):
-            payoff_for(scen)
+        paths = np.array([
+            [100.0, 110.0, 120.0],
+            [100.0, 80.0, 90.0],
+        ])
+        np.testing.assert_allclose(payoff_for(scen)(paths), [10.0, 0.0])
 
 
 class TestGeneralDiscreteGeometricFormula:

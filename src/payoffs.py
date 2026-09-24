@@ -75,3 +75,13 @@ def payoff_for(scenario, option=None):
         return lambda p: fn(p, scenario.K, option=option,
                             avg_start_idx=scenario.avg_start_idx)
     raise ValueError(f"Unsupported exotic_type: {kind!r}")
+
+
+def arithmetic_asian_payoff(paths, K, option="call", avg_start_idx=1):
+    """Arithmetic-average-rate payoff over ``paths[:, avg_start_idx:]``.
+
+    ``avg_start_idx=1`` averages the simulated monitoring dates while excluding
+    ``S0``, matching the convention used by :func:`geometric_asian_payoff`.
+    """
+    average = np.mean(paths[:, avg_start_idx:], axis=1)
+    return _vanilla(average, K, option)
