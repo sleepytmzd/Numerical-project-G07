@@ -10,9 +10,10 @@ hard-coded to plain/antithetic.
 
 import math
 import time
-from itertools import product
+import zlib
 
 import numpy as np
+import pandas as pd
 from scipy.stats import norm
 
 from src.analytic import barrier_closed_form, barrier_closed_form_bgk
@@ -119,7 +120,7 @@ def run_sweep(person, experiment_id, cases, methods, *, n_grid=N_GRID, R=R,
     n_cells = len(cases) * len(schemes) * len(methods) * len(n_grid)
     cell = 0
 
-    for case_idx, (scen_name, option) in enumerate(cases):
+    for scen_name, option in cases:
         scenario = SCENARIOS[scen_name]
         opt = option or scenario.option_type
         exact = exact_price(scenario, opt, n_steps)
@@ -133,9 +134,14 @@ def run_sweep(person, experiment_id, cases, methods, *, n_grid=N_GRID, R=R,
                     print(f"[{cell}/{n_cells}] {scen_name}/{opt} {scheme} {method}")
                 for n_paths in n_grid:
                     for rep in range(R):
-                        ss = make_seed_seq(experiment_id, case_idx,
-                                          hash(scheme) & 0xFFFF, hash(method) & 0xFFFF,
-                                          n_paths, rep)
+                        # Keyed by names via crc32 (hash() is salted per process;
+                        # list positions collide across separate run_sweep calls).
+                        # Scheme is deliberately NOT in the key: all schemes see the
+                        # same normals, so scheme comparisons are paired (CRN).
+                        ss = make_seed_seq(experiment_id,
+                                          zlib.crc32(scen_name.encode()),
+                                          zlib.crc32(opt.encode()),
+                                          zlib.crc32(method.encode()), n_paths, rep)
                         result = fn(scenario, n_paths, n_steps, ss, option=opt,
                                    scheme=scheme, **params)
                         log_result(
@@ -184,7 +190,6 @@ def summarize(df):
             "mean_std_error": g["std_error"].mean(), "mean_runtime_sec": mean_time,
             "efficiency": efficiency, "ci_coverage": coverage,
         }))
-    import pandas as pd
     return pd.DataFrame(rows)
 
 
@@ -204,6 +209,15 @@ def bootstrap_efficiency_ratio(df, group_keys_a, group_keys_b, group_cols=GROUP_
 
     a = _select(group_keys_a)
     b = _select(group_keys_b)
+    # Pooling replicates across different N (or scenarios) mixes variance scales
+    # and makes the ratio meaningless — require each side to be ONE cell.
+    for name, sel in (("a", a), ("b", b)):
+        if sel.empty:
+            raise ValueError(f"group_keys_{name} selects no rows")
+        mixed = [c for c in group_cols if sel[c].nunique() > 1]
+        if mixed:
+            raise ValueError(f"group_keys_{name} spans several cells (varying {mixed}); "
+                             "include those columns in the keys")
     rng = np.random.default_rng(seed)
 
     def _eff(sample_prices, sample_times):

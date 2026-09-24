@@ -52,7 +52,8 @@ def save_fig(fig, name):
 
 
 def ci_vs_n_plot(ax, summary_df, exact, methods, n_col="n_paths",
-                 price_col="mean_price", se_col="mean_std_error"):
+                 price_col="mean_price", se_col="mean_std_error",
+                 exact_label="Exact (closed form)"):
     """Estimate +/- 95% CI vs N (log-x), one offset series per method.
 
     ``summary_df`` is the output of ``benchmark.summarize`` restricted to one
@@ -71,7 +72,7 @@ def ci_vs_n_plot(ax, summary_df, exact, methods, n_col="n_paths",
         ax.errorbar(x, y, yerr=ci, fmt="o-", capsize=3, markersize=4,
                     color=METHOD_COLORS.get(method), label=METHOD_LABELS.get(method, method))
     if exact is not None:
-        ax.axhline(exact, color="black", linestyle="--", linewidth=1, label="Exact (closed form)")
+        ax.axhline(exact, color="black", linestyle="--", linewidth=1, label=exact_label)
     ax.set_xscale("log")
     ax.set_xlabel("Number of paths (N)")
     ax.set_ylabel("Estimated price")

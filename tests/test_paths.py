@@ -67,16 +67,38 @@ class TestGeneratePaths:
 
     @pytest.mark.parametrize("scheme", ["euler_maruyama", "milstein"])
     def test_schemes_agree_with_exact_at_fixed_seed(self, scheme):
-        # Fine time grid (small dt) so discretization error is within MC noise.
-        n, m = 50_000, 1000
-        rng = np.random.default_rng(3)
-        Z = rng.standard_normal((n, m))
-        exact_paths = generate_paths(SCENARIO, n, m, Z, scheme="exact")
-        other_paths = generate_paths(SCENARIO, n, m, Z, scheme=scheme)
+        # Same normals => compare with a PAIRED standard error.
+        n, m = 50_000, 252
+        Z = np.random.default_rng(3).standard_normal((n, m))
+        diff = (generate_paths(SCENARIO, n, m, Z, scheme=scheme)[:, -1]
+                - generate_paths(SCENARIO, n, m, Z, scheme="exact")[:, -1])
+        se = diff.std(ddof=1) / math.sqrt(n)
+        assert abs(diff.mean()) < 4 * se + 0.01   # 0.01: O(dt) weak bias allowance
 
-        ST_exact, ST_other = exact_paths[:, -1], other_paths[:, -1]
-        se = ST_exact.std(ddof=1) / math.sqrt(n)
-        assert abs(ST_exact.mean() - ST_other.mean()) < 4 * se
+    def test_strong_error_milstein_beats_euler(self):
+        # Pathwise (strong) error vs exact: Euler O(sqrt dt), Milstein O(dt).
+        # A wrong-signed Milstein correction would be WORSE than Euler here.
+        n, m = 20_000, 252
+        Z = np.random.default_rng(7).standard_normal((n, m))
+        exact = generate_paths(SCENARIO, n, m, Z, scheme="exact")[:, -1]
+        err_em = np.abs(generate_paths(SCENARIO, n, m, Z, "euler_maruyama")[:, -1] - exact).mean()
+        err_mil = np.abs(generate_paths(SCENARIO, n, m, Z, "milstein")[:, -1] - exact).mean()
+        assert err_mil < 0.05 * err_em
+
+    def test_strong_order_euler_half(self):
+        # Halving dt 4x should roughly halve Euler's strong error (order 0.5).
+        n = 20_000
+        rng = np.random.default_rng(8)
+        Zf = rng.standard_normal((n, 1024))
+        errs = []
+        for m in (64, 256, 1024):
+            k = 1024 // m
+            Z = Zf.reshape(n, m, k).sum(axis=2) / math.sqrt(k)   # same Brownian path
+            exact = generate_paths(SCENARIO, n, m, Z, "exact")[:, -1]
+            errs.append(np.abs(generate_paths(SCENARIO, n, m, Z, "euler_maruyama")[:, -1]
+                               - exact).mean())
+        slope = np.polyfit(np.log([1 / 64, 1 / 256, 1 / 1024]), np.log(errs), 1)[0]
+        assert 0.4 < slope < 0.6
 
 
 class TestPayoffs:
@@ -115,16 +137,15 @@ class TestPayoffs:
                                             ASIAN.T, option="call", m=m)
         assert abs(mc_price - exact) < 3 * se
 
-    def test_30day_window_uses_avg_start_idx(self):
+    def test_30day_window_matches_closed_form(self):
         scen = SCENARIOS["asian_30d"]
-        rng = np.random.default_rng(6)
-        n, m = 2000, N_STEPS
-        Z = rng.standard_normal((n, m))
-        paths = generate_paths(scen, n, m, Z, scheme="exact")
-        payoff = payoff_for(scen)(paths)
-        # Averaging window really is the last 30 points.
-        assert m - scen.avg_start_idx + 1 == 30
-        assert payoff.shape == (n,)
+        assert N_STEPS - scen.avg_start_idx + 1 == 30
+        n, m = 200_000, N_STEPS
+        Z = np.random.default_rng(6).standard_normal((n, m))
+        payoff = payoff_for(scen)(generate_paths(scen, n, m, Z, scheme="exact"))
+        disc = math.exp(-scen.r * scen.T)
+        mc, se = disc * payoff.mean(), disc * payoff.std(ddof=1) / math.sqrt(n)
+        assert abs(mc - exact_price(scen, "call", m)) < 3 * se
 
     def test_arithmetic_asian_not_yet_implemented(self):
         scen = SCENARIOS["asian_arith"]
