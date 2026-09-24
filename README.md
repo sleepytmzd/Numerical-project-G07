@@ -108,10 +108,10 @@ Numerical-project-G07/
 | `baseline_rmse_vs_n.png` | `experiments/exp_baseline.py` | `results/raw/nafis_baseline.csv` |
 | `baseline_scheme_comparison.png` | `experiments/exp_baseline.py` | `results/raw/nafis_baseline.csv` |
 | `coverage_table.png` | `experiments/exp_baseline.py` | `results/raw/nafis_baseline.csv` |
-| `cv_asian_vrf.png` | `experiments/exp_control.py` | `results/raw/tamzeed_control.csv` |
-| `cv_rho_vs_vrf.png` | `experiments/exp_control.py` | `results/raw/tamzeed_control.csv` |
-| `cv_barrier_collapse.png` | `experiments/exp_control.py` | `results/raw/tamzeed_control.csv` |
-| `barrier_bias_vs_steps.png` | `experiments/exp_barrier_bias.py` | `results/raw/tamzeed_barrier_bias.csv` |
+| `cv_asian_vrf.png` | `experiments/exp_control.py` | `results/raw/aritra_control.csv` |
+| `cv_rho_vs_vrf.png` | `experiments/exp_control.py` | `results/raw/aritra_control.csv` |
+| `cv_barrier_collapse.png` | `experiments/exp_control.py` | `results/raw/aritra_control.csv` |
+| `barrier_bias_vs_steps.png` | `experiments/exp_barrier_bias.py` | `results/raw/aritra_barrier_bias.csv` |
 | `qmc_vs_mc_asian.png` | `experiments/exp_qmc.py` | `results/raw/nafis_qmc.csv` |
 | `qmc_vs_mc_barrier.png` | `experiments/exp_qmc.py` | `results/raw/nafis_qmc.csv` |
 | `qmc_bridge_vs_incremental.png` | `experiments/exp_qmc.py` | `results/raw/nafis_qmc.csv` |
