@@ -77,6 +77,7 @@ Numerical-project-G07/
   tests/
     test_analytic.py      — closed-form verification                   (Stage 1)
     test_paths.py         — engine sanity checks                       (Stage 2)
+    test_qmc.py           — Sobol, Brownian bridge, RQMC estimator     (Stage 4)
   results/
     raw/        — one CSV per (person, experiment_id)
     figures/    — all generated plots
@@ -112,11 +113,12 @@ Numerical-project-G07/
 | `cv_rho_vs_vrf.png` | `experiments/exp_control.py` | `results/raw/aritra_control.csv` |
 | `cv_barrier_collapse.png` | `experiments/exp_control.py` | `results/raw/aritra_control.csv` |
 | `barrier_bias_vs_steps.png` | `experiments/exp_barrier_bias.py` | `results/raw/aritra_barrier_bias.csv` |
-| `qmc_vs_mc_asian.png` | `experiments/exp_qmc.py` | `results/raw/nafis_qmc.csv` |
-| `qmc_vs_mc_barrier.png` | `experiments/exp_qmc.py` | `results/raw/nafis_qmc.csv` |
-| `qmc_bridge_vs_incremental.png` | `experiments/exp_qmc.py` | `results/raw/nafis_qmc.csv` |
-| `scheme_strong_order.png` | `experiments/exp_scheme_order.py` | `results/raw/nafis_scheme_order.csv` |
-| `scheme_weak_order.png` | `experiments/exp_scheme_order.py` | `results/raw/nafis_scheme_order.csv` |
+| `qmc_vs_mc_asian.png` | `experiments/exp_qmc.py` | `results/raw/zaki_qmc.csv` |
+| `qmc_vs_mc_barrier.png` | `experiments/exp_qmc.py` | `results/raw/zaki_qmc.csv` |
+| `qmc_bridge_vs_incremental.png` | `experiments/exp_qmc.py` | `results/raw/zaki_qmc.csv` |
+| `qmc_effective_dimension.png` | `experiments/exp_qmc.py` | — (analytic, no CSV) |
+| `scheme_strong_order.png` | `experiments/exp_scheme_order.py` | `results/raw/zaki_scheme_order.csv` |
+| `scheme_weak_order.png` | `experiments/exp_scheme_order.py` | `results/raw/zaki_scheme_order.csv` |
 | `is_deep_barrier.png` | `experiments/exp_importance.py` | `results/raw/zaki_importance.csv` |
 | `is_weight_distribution.png` | `experiments/exp_importance.py` | `results/raw/zaki_importance.csv` |
 | `master_efficiency_table.png` | `experiments/exp_master.py` | `results/raw/zaki_master.csv` |
