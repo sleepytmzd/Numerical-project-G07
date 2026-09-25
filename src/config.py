@@ -1,12 +1,3 @@
-"""
-Configuration module — frozen scenarios and experiment constants.
-
-Stage 1 (Arnob Biswas, 2105015).
-
-Every downstream module imports from here. Do not modify the frozen scenarios
-or experiment constants without updating all dependents.
-"""
-
 from dataclasses import dataclass
 from typing import Optional
 
@@ -14,9 +5,7 @@ from typing import Optional
 @dataclass(frozen=True)
 class Scenario:
     """A frozen option-pricing scenario.
-
-    Parameters
-    ----------
+    Parameters:
     name : str
         Unique identifier used in filenames and log rows.
     S0 : float
@@ -54,26 +43,16 @@ class Scenario:
     barrier_kind: Optional[str] = "up_and_in"
     avg_start_idx: int = 1
 
-
-# ---------------------------------------------------------------------------
-# Experiment constants (§1.5)
-# ---------------------------------------------------------------------------
-
+# Experiment constants 
 N_GRID = [256, 1024, 4096, 16384, 65536]   # powers of 2 (Sobol requirement)
 N_STEPS = 252                                # daily monitoring, 1 year
 R = 20                                       # replications per (method, N) cell
 BASE_SEED = 402                              # np.random.SeedSequence(402)
 
-
-# ---------------------------------------------------------------------------
-# Frozen scenarios (§1.5)
-# All share S0=100, r=0.03, sigma=0.2, T=1.0
-# ---------------------------------------------------------------------------
-
 _COMMON = dict(S0=100.0, r=0.03, sigma=0.2, T=1.0)
 
 SCENARIOS = {
-    # --- Barrier family ---
+    # Barrier family 
     "paper_barrier": Scenario(
         name="paper_barrier",
         K=105.0,
@@ -101,11 +80,11 @@ SCENARIOS = {
         barrier_kind="up_and_in",
         **_COMMON,
     ),
-    # --- Asian family (geometric) ---
+    # Asian family (geometric) 
     "paper_asian_geo": Scenario(
         name="paper_asian_geo",
         K=105.0,
-        option_type="call",      # Note: Stage 2 also uses put
+        option_type="call",      
         exotic_type="geometric_asian",
         barrier_kind=None,
         B=None,
@@ -121,7 +100,7 @@ SCENARIOS = {
         avg_start_idx=N_STEPS - 30 + 1,   # average over the final 30 trading days
         **_COMMON,
     ),
-    # --- Asian family (arithmetic) ---
+    # Asian family (arithmetic) 
     "asian_arith": Scenario(
         name="asian_arith",
         K=105.0,

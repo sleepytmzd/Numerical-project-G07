@@ -1,12 +1,3 @@
-"""
-Tests for analytic closed-form pricers.
-
-Stage 1 (Arnob Biswas, 2105015).
-
-Pins every value in WORKPLAN §2; asserts put–call parity; asserts in-out
-parity at both paper_barrier and mid_barrier (trap #6).
-"""
-
 import math
 
 import pytest
@@ -24,14 +15,7 @@ from src.config import N_STEPS, SCENARIOS
 S0, r, sigma, T = 100.0, 0.03, 0.2, 1.0
 K = 105.0
 
-
-# ============================================================================
-# §2 Reference values
-# ============================================================================
-
 class TestReferenceValues:
-    """Pin every value in WORKPLAN §2."""
-
     def test_vanilla_european_call(self):
         """Vanilla European call, K=105 → 7.12806."""
         price = bs_call(S0, K, r, sigma, T)
@@ -56,11 +40,6 @@ class TestReferenceValues:
         price = geometric_asian_closed_form(S0, K, r, sigma, T,
                                             option="call", m=None)
         assert price == pytest.approx(2.98488, abs=1e-3), f"Got {price}"
-
-
-# ============================================================================
-# Put–Call Parity
-# ============================================================================
 
 class TestPutCallParity:
     """C - P = S0 - K*exp(-rT) for European options."""
@@ -92,18 +71,9 @@ class TestPutCallParity:
         expected = math.exp(-r * T) * (S0 * math.exp(b * T) - K)
         assert (c - p) == pytest.approx(expected, abs=1e-10)
 
-
-# ============================================================================
-# In-Out Parity for barrier options
-# ============================================================================
-
 class TestInOutParity:
     """C_ui + C_uo = C_vanilla for barrier options.
-
-    Checked at paper_barrier AND mid_barrier (trap #6: the paper_barrier
-    test is weak because C_uo ≈ 0.023 is only 0.3% of C_vanilla).
     """
-
     def test_in_out_parity_paper_barrier(self):
         """In-out parity at B=110.6772."""
         B = 110.6772
@@ -134,11 +104,6 @@ class TestInOutParity:
         c_van = bs_call(S0, K, r, sigma, T)
         assert (c_ui + c_uo) == pytest.approx(c_van, abs=1e-10)
 
-
-# ============================================================================
-# BGK correction sanity
-# ============================================================================
-
 class TestBGKCorrection:
     """The BGK-corrected value should be between the continuous value and
     the vanilla call (for an up-and-in call with B near S0)."""
@@ -156,7 +121,6 @@ class TestBGKCorrection:
             f"BGK price {price} should be < continuous {continuous} "
             "for an up-and-in (barrier shifted outward reduces knock-in probability)"
         )
-        # §2 says ≈7.093
         assert price == pytest.approx(7.093, abs=0.01), f"Got {price}"
 
     def test_bgk_converges_to_continuous(self):
@@ -169,15 +133,9 @@ class TestBGKCorrection:
                                            kind="up_and_in", option="call")
         assert bgk_fine == pytest.approx(continuous, abs=1e-3)
 
-
-# ============================================================================
-# Discrete vs continuous geometric Asian (trap #1)
-# ============================================================================
-
 class TestDiscreteVsContinuousAsian:
     """The discrete Kemna–Vorst variant should differ from the continuous
     one and converge as m → ∞."""
-
     def test_discrete_differs_from_continuous(self):
         c_cont = geometric_asian_closed_form(S0, K, r, sigma, T, option="call")
         c_disc = geometric_asian_closed_form(S0, K, r, sigma, T, option="call", m=252)

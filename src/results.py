@@ -1,15 +1,3 @@
-"""
-Results logging and loading — one CSV per person per experiment.
-
-Stage 1 (Arnob Biswas, 2105015).
-
-Schema (§1.6):
-    run_id, timestamp, person, experiment_id, scenario, option_type, scheme,
-    method, method_params, n_paths, n_steps, replicate_id, seed, machine_id,
-    price, std_error, ci_low, ci_high, exact_price, abs_error, runtime_sec,
-    extra_json
-"""
-
 import csv
 import glob
 import json
@@ -78,7 +66,6 @@ def log_result(
     extra: dict | None = None,
 ) -> None:
     """Append one row to ``results/raw/<person>_<experiment_id>.csv``.
-
     Creates the file with a header row if it does not exist yet.
     """
     _RESULTS_DIR.mkdir(parents=True, exist_ok=True)
@@ -121,7 +108,6 @@ def log_result(
 
 def load_all_results(results_dir: Path | None = None) -> pd.DataFrame:
     """Glob all ``results/raw/*.csv`` files into one DataFrame.
-
     Numeric columns are coerced appropriately; ``extra_json`` is left as a
     string (callers can ``json.loads`` it when needed).
     """
