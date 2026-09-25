@@ -1,13 +1,3 @@
-"""
-Generic benchmark runner and analysis helpers.
-
-Stage 2 (Nafis Nahian, 2105007).
-
-``ESTIMATORS`` is a registry: Stages 3–5 register their own estimator under a
-new name and ``run_sweep`` picks it up automatically — nothing here is
-hard-coded to plain/antithetic.
-"""
-
 import math
 import time
 import zlib
@@ -21,15 +11,12 @@ from src.config import N_GRID, N_STEPS, R, SCENARIOS
 from src.estimators import antithetic_mc, make_seed_seq, plain_mc, seed_int
 from src.results import log_result
 
-# ---------------------------------------------------------------------------
 # Estimator registry
-# ---------------------------------------------------------------------------
-
 ESTIMATORS = {}
 
 
 def register(name):
-    """Decorator: ``@register("control_variate")`` adds an estimator to the sweep."""
+    # @register("control_variate) -> adds an estimator to the sweep
     def deco(fn):
         ESTIMATORS[name] = fn
         return fn
@@ -40,10 +27,7 @@ register("plain")(plain_mc)
 register("antithetic")(antithetic_mc)
 
 
-# ---------------------------------------------------------------------------
 # Analytic benchmarks
-# ---------------------------------------------------------------------------
-
 def _discrete_geometric_asian_price(scenario, option, n_steps):
     """General discrete geometric-Asian price over the ACTUAL averaging window
     ``scenario.avg_start_idx .. n_steps`` (not just full-window m=252).
@@ -103,10 +87,7 @@ def exact_price_bgk(scenario, option=None, n_steps=N_STEPS):
                                    kind=scenario.barrier_kind, option=option)
 
 
-# ---------------------------------------------------------------------------
-# Sweep runner
-# ---------------------------------------------------------------------------
-
+#Sweep runner
 def run_sweep(person, experiment_id, cases, methods, *, n_grid=N_GRID, R=R,
               n_steps=N_STEPS, schemes=("exact",), method_params=None, verbose=True):
     """Sweep (case x scheme x method x N x replicate), logging one row each.
@@ -158,19 +139,14 @@ def run_sweep(person, experiment_id, cases, methods, *, n_grid=N_GRID, R=R,
         print(f"run_sweep done in {time.perf_counter() - t_start:.1f}s")
 
 
-# ---------------------------------------------------------------------------
 # Analysis helpers
-# ---------------------------------------------------------------------------
-
 GROUP_COLS = ["scenario", "option_type", "scheme", "method", "n_paths"]
 
 
 def summarize(df):
-    """Per-(scenario, option, scheme, method, n_paths) cell summary.
 
-    Variance and bias are measured ACROSS replicates (never from a single
-    estimator's own std_error), per WORKPLAN §1.7.
-    """
+    # Variance and bias are measured ACROSS replicates (never from a single
+    # estimator's own std_error)
     rows = []
     for keys, g in df.groupby(GROUP_COLS):
         exact = g["exact_price"].dropna()
@@ -195,12 +171,6 @@ def summarize(df):
 
 def bootstrap_efficiency_ratio(df, group_keys_a, group_keys_b, group_cols=GROUP_COLS,
                                n_boot=2000, seed=402):
-    """Bootstrap CI for efficiency(method_a) / efficiency(method_b) on matched cells.
-
-    group_keys_a / group_keys_b select rows via ``df[group_cols] == keys`` (dict).
-    Resamples replicates (with replacement) independently for each group.
-    Returns (ratio, ci_low, ci_high).
-    """
     def _select(keys):
         mask = np.ones(len(df), dtype=bool)
         for k, v in keys.items():

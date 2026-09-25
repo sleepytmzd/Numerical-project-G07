@@ -1,18 +1,6 @@
-"""
-Monte Carlo estimators: plain MC and antithetic variates.
-
-Stage 2 (Nafis Nahian, 2105007).
-
-Every estimator in the project (including Stages 3–5) shares one signature so
-``benchmark.run_sweep`` can treat them uniformly:
-
-    estimator(scenario, n_paths, n_steps, seed_seq, *, option=None,
-              scheme="exact", **params) -> EstimateResult
-
-``seed_seq`` is a ``np.random.SeedSequence`` from ``make_seed_seq`` — each
-estimator builds its own ``normals`` array from it (pseudo-random, Sobol, ...).
-"""
-
+# Monte Carlo estimators: plain MC and antithetic variates.
+# estimator(scenario, n_paths, n_steps, seed_seq, *, option=None,
+#           scheme="exact", **params) -> EstimateResult
 import math
 import time
 import zlib
@@ -25,7 +13,7 @@ from src.paths import generate_paths
 from src.payoffs import payoff_for
 
 Z95 = 1.959963984540054
-DEFAULT_CHUNK = 8192   # paths per block — keeps memory at ~16 MB per block at 252 steps
+DEFAULT_CHUNK = 8192   # memory at ~16 MB per block at 252 steps
 
 
 @dataclass
@@ -39,28 +27,19 @@ class EstimateResult:
     extra: dict = field(default_factory=dict)   # rho, b_hat, ESS, max_weight, ...
 
 
-# ---------------------------------------------------------------------------
-# Seeding (§1.5): SeedSequence(402) keyed by experiment and cell, never np.random.seed
-# ---------------------------------------------------------------------------
-
+# SeedSequence(402) keyed by experiment and cell
 def make_seed_seq(experiment_id: str, *keys: int) -> np.random.SeedSequence:
-    """Deterministic SeedSequence keyed by ``(experiment_id, *keys)``.
-
-    Equivalent to walking ``SeedSequence(402).spawn()`` down a fixed tree:
-    the same key always yields the same stream, and distinct keys are independent.
-    """
+    # Deterministic SeedSequence keyed by ``(experiment_id, *keys)``.
     key = (zlib.crc32(experiment_id.encode()), *(int(k) for k in keys))
     return np.random.SeedSequence(BASE_SEED, spawn_key=key)
 
 
 def seed_int(seed_seq: np.random.SeedSequence) -> int:
-    """A single integer fingerprint of a SeedSequence, for the CSV ``seed`` column."""
     return int(seed_seq.generate_state(1, dtype=np.uint32)[0])
 
 
 def summarize_samples(samples: np.ndarray, runtime_sec: float, n_paths: int,
                       extra: dict | None = None) -> EstimateResult:
-    """Build an EstimateResult from iid (already discounted) samples."""
     m = len(samples)
     price = float(samples.mean())
     se = float(samples.std(ddof=1) / math.sqrt(m)) if m > 1 else float("nan")
@@ -76,13 +55,11 @@ def _chunks(n, chunk):
         done += k
 
 
-# ---------------------------------------------------------------------------
 # Estimators
-# ---------------------------------------------------------------------------
 
 def plain_mc(scenario, n_paths, n_steps, seed_seq, *, option=None, scheme="exact",
              chunk=DEFAULT_CHUNK, **_):
-    """Crude Monte Carlo: mean of discounted payoffs over n_paths iid paths."""
+    # Crude Monte Carlo: mean of discounted payoffs over n_paths iid paths
     t0 = time.perf_counter()
     rng = np.random.default_rng(seed_seq)
     payoff = payoff_for(scenario, option)
@@ -101,11 +78,7 @@ def plain_mc(scenario, n_paths, n_steps, seed_seq, *, option=None, scheme="exact
 
 def antithetic_mc(scenario, n_paths, n_steps, seed_seq, *, option=None, scheme="exact",
                   chunk=DEFAULT_CHUNK, **_):
-    """Antithetic variates: n_paths TOTAL paths = n_paths/2 pairs driven by [Z, -Z].
-
-    The pairs are the iid units, so the standard error is computed from the
-    n_paths/2 pair averages (Y + Y')/2 — NOT from the n_paths correlated payoffs.
-    """
+    # Antithetic variates: n_paths TOTAL paths = n_paths/2 pairs driven by [Z, -Z].
     if n_paths % 2:
         raise ValueError("antithetic_mc needs an even n_paths")
     t0 = time.perf_counter()
