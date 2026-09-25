@@ -214,8 +214,9 @@ def make_figures(table):
             hi.append(r["eff_ci_high"] - r["eff"])
         ax.bar(xs, ys, width, yerr=[lo, hi], capsize=2, color=METHOD_COLORS[m],
                label=METHOD_LABELS[m], error_kw=dict(linewidth=0.8))
-        for x, y in zip(xs, ys):
-            ax.text(x, y * 1.15, f"{y:.3g}", ha="center", va="bottom", fontsize=6.5, rotation=90)
+        for x, y, h in zip(xs, ys, hi):
+            text = f"{y:,.0f}" if y >= 100 else f"{y:.2g}" if y < 10 else f"{y:.0f}"
+            ax.text(x, (y + h) * 1.25, text, ha="center", va="bottom", fontsize=7, rotation=90)
     ax.axhline(1.0, color="black", linewidth=0.8, linestyle="--")
     ax.set_yscale("log")
     ax.set_ylim(0.3, ax.get_ylim()[1] * 8)

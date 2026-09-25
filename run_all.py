@@ -42,8 +42,10 @@ def main():
                     help="Run only these experiments: " + ", ".join(e[0] for e in EXPERIMENTS))
     args = ap.parse_args()
 
-    env = {**os.environ, "OMP_NUM_THREADS": "1", "PYTHONIOENCODING": "utf-8",
-           "MPLBACKEND": "Agg"}
+    # PYTHONUTF8: several scripts write findings containing √, σ, ε with a bare
+    # write_text(); on Windows that defaults to cp1252 and crashes mid-write.
+    env = {**os.environ, "OMP_NUM_THREADS": "1", "PYTHONUTF8": "1",
+           "PYTHONIOENCODING": "utf-8", "MPLBACKEND": "Agg"}
 
     if args.tests:
         print("=== pytest ===", flush=True)
