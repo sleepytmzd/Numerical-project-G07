@@ -1,8 +1,4 @@
-"""
-Stage-4 tests: scrambled Sobol, Brownian bridge and the RQMC estimator.
-
-Stage 4 (Zaki Rehnoom Unmona, 2105016).
-"""
+# Stage-4 tests: scrambled Sobol, Brownian bridge and the RQMC estimator.
 
 import math
 

@@ -1,9 +1,4 @@
-"""
-Tests for estimators.py and benchmark.py.
-
-Stage 2 (Nafis Nahian, 2105007).
-"""
-
+# Tests for estimators.py and benchmark.py.
 import os
 import subprocess
 import sys

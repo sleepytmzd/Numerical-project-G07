@@ -1,8 +1,4 @@
-"""
-Engine sanity tests — GBM path generation and payoffs.
-
-Stage 2 (Nafis Nahian, 2105007).
-"""
+# Engine sanity tests — GBM path generation and payoffs.
 
 import math
 
