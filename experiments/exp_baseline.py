@@ -319,21 +319,24 @@ def verify_paper_claims(df, summary, barrier_ref):
              "**confirmed** for the barrier (≈1.5) and the geometric Asian call (≈1.3–1.4). "
              "The Asian put's VRF is ≈3.9, well above 1.3 — but the paper's put figure (Fig. 8) "
              "appears to be a copy of its call figure (Fig. 6), so its put result was likely "
-             "never separately measured. In our implementation antithetic is also ~1.2x "
-             "*cheaper* per path (half the normal draws), so the efficiency gain exceeds the "
-             "VRF; the paper instead reports 'increased computational time'. The across-"
-             "replicate bootstrap ratio (last column) is the §1.7.3 cross-check: with R=20 a "
-             "variance ratio has a ~[0.4, 2.5]x sampling range, so it cannot resolve 1.3 vs "
-             "1.5; the within-run VRF (from N/2 iid pairs per replicate) can.\n")
+             "never separately measured. On this machine antithetic was also ~1.2x "
+             "*cheaper* per path (half the normal draws), so the efficiency ratio exceeds the "
+             "VRF; these timings are indicative only (in the authoritative master sweep "
+             "antithetic costs about the same as plain, so its efficiency gain is about its "
+             "VRF). The paper reports 'increased computational time' without numbers. The "
+             "across-replicate bootstrap ratio (last column) is the acceptance-criterion-3 "
+             "cross-check: with R=20 a variance ratio has a ~[0.4, 2.5]x sampling range, so it "
+             "cannot resolve 1.3 vs 1.5; the within-run VRF (from N/2 iid pairs per replicate) "
+             "can.\n")
 
-    # ---- Claim 3: discrete-monitoring bias ----
+    # ---- Discrete-monitoring bias (report §3.5) ----
     scen = SCENARIOS["paper_barrier"]
     cont = exact_price(scen, "call")
     bgk = exact_price_bgk(scen, "call", N_STEPS)
     ref, ref_se = barrier_ref
     p_max = _rows(df, "paper_barrier", "call", "plain", max(N_GRID))
     se_1024 = _rows(df, "paper_barrier", "call", "plain", 1024)["std_error"].mean()
-    L.append("## Discrete-monitoring barrier bias (WORKPLAN trap #5)\n")
+    L.append("## Discrete-monitoring barrier bias (report §3.5)\n")
     L.append(f"- Continuous Reiner–Rubinstein value: {cont:.4f}")
     L.append(f"- BGK-corrected (252 steps): {bgk:.4f}")
     L.append(f"- **Precise 252-step discrete value (in-out parity, 4M paths): {ref:.4f} ± {ref_se:.4f}** "
@@ -341,12 +344,12 @@ def verify_paper_claims(df, summary, barrier_ref):
     L.append(f"- Sweep, plain MC @65536 (mean of 20 reps): {p_max['price'].mean():.4f} ± "
              f"{p_max['price'].std(ddof=1) / math.sqrt(len(p_max)):.4f}")
     L.append(f"- Plain-MC SE at N=1024: {se_1024:.3f} — ~{se_1024 / abs(ref - cont):.0f}x the bias.")
-    L.append("\nNote: WORKPLAN §2 lists the discrete value as ≈7.076 (bias ≈ −0.03); the precise "
+    L.append("\nNote: our initial plan listed the discrete value as ≈7.076 (bias ≈ −0.03); the precise "
              "value above shows the bias is ≈ −0.011 and BGK is accurate to ~0.001.\n")
 
-    # ---- Claim 4: schemes ----
+    # ---- Claim 3: schemes ----
     crn = scheme_differences_crn()
-    L.append("## Claim 4 — scheme choice (Euler / Euler–Maruyama / Milstein) is negligible\n")
+    L.append("## Claim 3 — scheme choice (Euler / Euler–Maruyama / Milstein) is negligible\n")
     for s, (d, se) in crn.items():
         L.append(f"- {s} − exact (common random numbers, 1M paths): {d:+.5f} ± {se:.5f}")
     L.append(f"- For scale: plain-MC SE at N=65536 is {p_max['std_error'].mean():.3f}.")
@@ -355,13 +358,14 @@ def verify_paper_claims(df, summary, barrier_ref):
              "numbers and ~50x smaller than the standard error of even a 65,536-path run. Both "
              "Euler–Maruyama and Milstein have weak order 1; Milstein improves only the strong "
              "(pathwise) order, so no accuracy gain on a price is expected. The paper never "
-             "writes its schemes down, and its Figs. 2–4 show identical sample points, i.e. the "
-             "same random numbers were reused, which makes near-identical plots unavoidable.\n")
+             "writes its schemes down, and its Figs. 2–4 show identical sample points (shared "
+             "random numbers or a duplicated figure); with shared random numbers near-identical "
+             "plots are unavoidable.\n")
 
-    # ---- 30-day Asian ----
+    # ---- Claim 4: 30-day Asian ----
     s30 = SCENARIOS["asian_30d"]
     a30 = _rows(df, "asian_30d", "call", "antithetic", max(N_GRID))
-    L.append("## 30-day-averaging geometric Asian call\n")
+    L.append("## Claim 4 — 30-day-averaging geometric Asian call\n")
     L.append(f"- Discrete closed form, 30-point window: {exact_price(s30, 'call'):.4f}; "
              f"full 252-point window: {exact_price(SCENARIOS['paper_asian_geo'], 'call'):.4f}; "
              f"vanilla call: {bs_call(s30.S0, s30.K, s30.r, s30.sigma, s30.T):.4f}")
@@ -369,7 +373,9 @@ def verify_paper_claims(df, summary, barrier_ref):
              f"{a30['price'].std(ddof=1) / math.sqrt(len(a30)):.4f}")
     L.append("\nThe paper states that for the 30-day window 'the exact closed-form solution "
              "remains identical to the previous examples'. Read literally (same value), this is "
-             "false: shortening the window to 30 days more than doubles the price.\n")
+             "false: shortening the window to 30 days more than doubles the price. (We read "
+             "'30 days' as 30 monitoring dates; a ~30-calendar-day window of ~21 trading days "
+             "gives ≈6.84, so the verdict does not depend on the reading.)\n")
 
     # ---- 3-SE acceptance check ----
     L.append("## Acceptance check — fraction of replicates within 3 SE of the closed form\n")

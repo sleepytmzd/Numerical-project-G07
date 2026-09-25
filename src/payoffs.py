@@ -21,8 +21,9 @@ def barrier_payoff(paths, K, B, kind="up_and_in", option="call"):
     """Knock-in / knock-out payoff with DISCRETE monitoring on the simulated grid.
 
     The barrier is checked at every grid point (including t=0), so with
-    n_steps=252 this is a daily-monitored barrier. Its price is ~0.03 below the
-    continuous Reiner–Rubinstein value (trap #5); see ``analytic.barrier_closed_form_bgk``.
+    n_steps=252 this is a daily-monitored barrier. Its price is ~0.012 below the
+    continuous Reiner–Rubinstein value (7.0941 vs 7.1055); see
+    ``analytic.barrier_closed_form_bgk``.
 
     kind : "up_and_in" | "up_and_out" | "down_and_in" | "down_and_out"
     """
