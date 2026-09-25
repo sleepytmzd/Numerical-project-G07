@@ -32,9 +32,11 @@ import os
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 
 import argparse
+import json
 import math
 import sys
 import time
+import zlib
 from pathlib import Path
 
 import matplotlib.pyplot as plt
@@ -47,10 +49,11 @@ import src.vr_importance   # noqa: F401  (registers "importance")
 import src.vr_qmc          # noqa: F401  (registers "rqmc")
 from _stage5_common import (TABLES_DIR, acceptance, cell_table, fmt_ci, references,
                             run_arith_reference, with_references)
-from src.benchmark import fit_loglog_slope, run_sweep
-from src.config import N_GRID, N_STEPS, R
+from src.benchmark import ESTIMATORS, exact_price, fit_loglog_slope
+from src.config import BASE_SEED, N_GRID, N_STEPS, R, SCENARIOS
+from src.estimators import make_seed_seq, seed_int
 from src.plots import METHOD_COLORS, METHOD_LABELS, apply_style, loglog_rmse_plot, save_fig
-from src.results import _RESULTS_DIR, load_all_results
+from src.results import _RESULTS_DIR, load_all_results, log_result
 
 PERSON = "tamzeed"
 EXPERIMENT_ID = "master"
@@ -77,13 +80,53 @@ EPSILONS = (1e-2, 1e-3)
 # Simulation
 # ---------------------------------------------------------------------------
 
+def _cells():
+    return [(scen, opt, m) for cases, methods in SWEEPS for scen, opt in cases for m in methods]
+
+
+def _seed(scen, opt, method, n_paths, rep):
+    # Exactly run_sweep's key, so every price equals what run_sweep would log.
+    return make_seed_seq(EXPERIMENT_ID, zlib.crc32(scen.encode()), zlib.crc32(opt.encode()),
+                         zlib.crc32(method.encode()), n_paths, rep)
+
+
 def simulate():
+    """Interleaved sweep: for each (replicate, N) block, every (scenario, method)
+    cell runs once, in a freshly shuffled order.
+
+    ``run_sweep`` runs each method as one contiguous block, so a transient
+    machine slowdown (CPU frequency scaling, background load) lands entirely on
+    whichever method is running — a first attempt at this sweep showed 1.5–2×
+    inflated timings on its first two minutes.  Interleaving spreads any drift
+    evenly over methods, which is what an authoritative efficiency comparison
+    needs.  Prices are unaffected: the seed keys are run_sweep's.
+    """
     # log_result appends, so start from a clean file or re-runs duplicate rows
     (_RESULTS_DIR / f"{PERSON}_{EXPERIMENT_ID}.csv").unlink(missing_ok=True)
+    cells = _cells()
+
+    # Untimed warm-up: imports, allocator, RQMC's cached bridge matrix.
+    for scen, opt, method in cells:
+        ESTIMATORS[method](SCENARIOS[scen], 256, N_STEPS, _seed("warmup", opt, method, 256, 0),
+                           option=opt)
+
+    order_rng = np.random.default_rng(BASE_SEED)
     t0 = time.perf_counter()
-    for cases, methods in SWEEPS:
-        run_sweep(person=PERSON, experiment_id=EXPERIMENT_ID, cases=cases,
-                  methods=methods, n_grid=N_GRID, R=R, n_steps=N_STEPS)
+    for rep in range(R):
+        for n_paths in N_GRID:
+            for i in order_rng.permutation(len(cells)):
+                scen, opt, method = cells[i]
+                scenario = SCENARIOS[scen]
+                ss = _seed(scen, opt, method, n_paths, rep)
+                res = ESTIMATORS[method](scenario, n_paths, N_STEPS, ss, option=opt, scheme="exact")
+                log_result(person=PERSON, experiment_id=EXPERIMENT_ID, scenario=scen,
+                           option_type=opt, scheme="exact", method=method, method_params="{}",
+                           n_paths=n_paths, n_steps=N_STEPS, replicate_id=rep,
+                           seed=seed_int(ss), price=res.price, std_error=res.std_error,
+                           ci_low=res.ci_low, ci_high=res.ci_high,
+                           exact_price=exact_price(scenario, opt, N_STEPS),
+                           runtime_sec=res.runtime_sec, extra=res.extra)
+        print(f"replicate {rep + 1}/{R} done ({time.perf_counter() - t0:.0f}s)", flush=True)
     print(f"master sweep done in {time.perf_counter() - t0:.0f}s")
     run_arith_reference()
 
@@ -331,7 +374,7 @@ def write_findings(df, sweep, table, acc, refs):
     L += ["## Cross-checks against earlier stages (indicative timings there)", ""]
     cv_a = top[(top["scenario"] == "asian_arith") & (top["method"] == "control_variate")].iloc[0]
     ex = sweep[(sweep["scenario"] == "asian_arith") & (sweep["method"] == "control_variate")
-               & (sweep["n_paths"] == n_max)]["extra_json"].map(__import__("json").loads)
+               & (sweep["n_paths"] == n_max)]["extra_json"].map(json.loads)
     rho = np.mean([e["rho"] for e in ex])
     L.append(f"- Control variate on the arithmetic Asian: mean rho = {rho:.6f}, within-run VRF "
              f"{cv_a['vrf_within_run']:.0f} (Stage 3: rho 0.999488, VRF 975.7).")

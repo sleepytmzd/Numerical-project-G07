@@ -7,7 +7,7 @@ Stage 5: importance sampling for up-and-in barrier calls (Tamzeed Mahfuz, 210501
    (``dataclasses.replace`` of deep_barrier, NOT added to config.py).
    deep_barrier knocks in on only ~10% of paths, so it is not truly rare; B=160
    (~2%) shows where the rare-event premise actually holds.
-3. Theta scan: fixed-theta IS at N=65,536 over theta = theta0 * [0, 2] with
+3. Theta scan: fixed-theta IS at N=65,536 over theta = theta0 * [0, 3] with
    common random numbers, giving the full per-path-variance curve that the
    7-point pilot grid samples.
 4. Weight diagnostics (analysis time, deterministic seed): the likelihood-ratio
@@ -64,7 +64,7 @@ SCENARIOS.setdefault("rare_barrier",
 BARRIERS = ["deep_barrier", "paper_barrier", "rare_barrier"]
 METHODS = ["plain", "antithetic", "importance"]
 SCAN_METHOD = "importance_fixed_theta"
-SCAN_FACTORS = np.linspace(0.0, 2.0, 17)
+SCAN_FACTORS = np.linspace(0.0, 3.0, 25)
 SCAN_N = 65_536
 DIAG_N = 65_536
 

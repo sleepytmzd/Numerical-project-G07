@@ -16,6 +16,10 @@ from scipy.stats import t as t_dist
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+# The findings contain ε, σ, θ...; Windows consoles default to cp1252.
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
 from src.benchmark import bootstrap_efficiency_ratio, exact_price, summarize
 from src.config import N_STEPS, SCENARIOS
 from src.estimators import make_seed_seq, seed_int
