@@ -24,9 +24,15 @@ pip install -r requirements.txt
 # Run tests (must pass before anything else)
 pytest tests/ -v
 
-# Run all experiments and regenerate figures/tables
-python run_all.py
+# Regenerate every figure and table
+python run_all.py --analyze-only   # from the committed CSVs, ~2 min
+python run_all.py                  # full re-simulation, ~25 min single-threaded
+python run_all.py --tests --only importance master   # pytest first, then a subset
 ```
+
+Every experiment script also takes `--analyze-only` on its own, e.g.
+`python experiments/exp_master.py --analyze-only`. `run_all.py` sets
+`OMP_NUM_THREADS=1` for every script.
 
 ## Experiment Protocol (§1.5)
 
@@ -37,6 +43,7 @@ python run_all.py
 | `R` | 20 replications | Variance measured across replicates |
 | `BASE_SEED` | 402 | `SeedSequence(402).spawn()` |
 | Timing | `perf_counter`, `OMP_NUM_THREADS=1` | Honest, comparable timings |
+| Authoritative timings | `experiments/exp_master.py` only | One machine, one interleaved run; earlier stages' timings are indicative |
 
 ### Scenarios (all use S0=100, r=0.03, σ=0.2, T=1.0)
 
@@ -48,6 +55,7 @@ python run_all.py
 | `paper_asian_geo` | Geometric Asian call/put | 105 | — | Stages 2, 4 |
 | `asian_30d` | Geometric Asian (last 30 days) | 105 | — | Stage 2 |
 | `asian_arith` | Arithmetic Asian call | 105 | — | Stages 3, 5 |
+| `rare_barrier` | Up-and-in call (extension, defined only inside `exp_importance.py`) | 105 | 160 | Stage 5 |
 
 ## Project Structure
 
@@ -74,10 +82,14 @@ Numerical-project-G07/
     exp_scheme_order.py   — SDE scheme order study                    (Stage 4)
     exp_importance.py     — importance sampling experiments            (Stage 5)
     exp_master.py         — master comparison sweep                   (Stage 5)
+    _stage5_common.py     — shared Stage-5 analysis helpers           (Stage 5)
   tests/
     test_analytic.py      — closed-form verification                   (Stage 1)
     test_paths.py         — engine sanity checks                       (Stage 2)
+    test_estimators.py    — plain/antithetic estimators, sweep seeding (Stage 2)
+    test_control.py       — control-variate coefficient and estimator  (Stage 3)
     test_qmc.py           — Sobol, Brownian bridge, RQMC estimator     (Stage 4)
+    test_importance.py    — P(Z>4) smoke test, likelihood ratio, IS    (Stage 5)
   results/
     raw/        — one CSV per (person, experiment_id)
     figures/    — all generated plots
@@ -119,11 +131,17 @@ Numerical-project-G07/
 | `qmc_effective_dimension.png` | `experiments/exp_qmc.py` | — (analytic, no CSV) |
 | `scheme_strong_order.png` | `experiments/exp_scheme_order.py` | `results/raw/zaki_scheme_order.csv` |
 | `scheme_weak_order.png` | `experiments/exp_scheme_order.py` | `results/raw/zaki_scheme_order.csv` |
-| `is_deep_barrier.png` | `experiments/exp_importance.py` | `results/raw/zaki_importance.csv` |
-| `is_weight_distribution.png` | `experiments/exp_importance.py` | `results/raw/zaki_importance.csv` |
-| `master_efficiency_table.png` | `experiments/exp_master.py` | `results/raw/zaki_master.csv` |
-| `master_rmse_vs_n.png` | `experiments/exp_master.py` | `results/raw/zaki_master.csv` |
-| `master_efficiency_bars.png` | `experiments/exp_master.py` | `results/raw/zaki_master.csv` |
+| `is_deep_barrier.png` | `experiments/exp_importance.py` | `results/raw/tamzeed_importance.csv`, `zaki_qmc.csv` (references) |
+| `is_weight_distribution.png` | `experiments/exp_importance.py` | `results/raw/tamzeed_importance.csv` (+ a deterministic diagnostic draw) |
+| `is_theta_scan.png` | `experiments/exp_importance.py` | `results/raw/tamzeed_importance.csv` |
+| `master_efficiency_table.png` | `experiments/exp_master.py` | `results/raw/tamzeed_master.csv`, `tamzeed_master_reference.csv`, `zaki_qmc.csv` |
+| `master_rmse_vs_n.png` | `experiments/exp_master.py` | same as above |
+| `master_efficiency_bars.png` | `experiments/exp_master.py` | same as above |
+
+Tables: each script also writes `results/tables/<topic>_summary.csv` and
+`<topic>_findings.md` (Stage 5: `importance_*`, `master_summary.csv`,
+`master_efficiency.csv`, `master_findings.md`). Report numbers are quoted from
+the `*_findings.md` files.
 
 ## Verified Reference Values (§2)
 
@@ -134,6 +152,13 @@ Numerical-project-G07/
 | Up-and-out call (in-out parity) | **0.02254** |
 | Geometric Asian call (continuous) | **2.98488** |
 | BGK-corrected barrier (252 steps) | **≈7.093** |
+
+252-date (discretely monitored) references used for bias/RMSE from Stage 4 on:
+paper barrier **7.094133 ± 0.000096**, deep barrier **3.385730 ± 0.001014**
+(64 RQMC scrambles × 65,536, `zaki_qmc.csv`), arithmetic Asian **≈3.16298**
+(64 scrambles, `tamzeed_master_reference.csv`), geometric Asian **3.000200**
+(discrete closed form). WORKPLAN §2's "≈7.076" for the 252-step barrier is
+superseded (Stage 2 finding).
 
 ## License
 
