@@ -34,7 +34,7 @@ Every experiment script also takes `--analyze-only` on its own, e.g.
 `python experiments/exp_master.py --analyze-only`. `run_all.py` sets
 `OMP_NUM_THREADS=1` for every script.
 
-## Experiment Protocol (§1.5)
+## Experiment Protocol
 
 | Constant | Value | Rationale |
 |---|---|---|
@@ -51,8 +51,8 @@ Every experiment script also takes `--analyze-only` on its own, e.g.
 |---|---|---|---|---|
 | `paper_barrier` | Up-and-in call | 105 | 110.6772 | Stages 2–5 |
 | `mid_barrier` | Up-and-in call | 105 | 130 | Stage 1 parity test |
-| `deep_barrier` | Up-and-in call | 105 | 140 | Stages 3, 5 |
-| `paper_asian_geo` | Geometric Asian call/put | 105 | — | Stages 2, 4 |
+| `deep_barrier` | Up-and-in call | 105 | 140 | Stages 3, 4, 5 |
+| `paper_asian_geo` | Geometric Asian call/put | 105 | — | Stages 2, 4, 5 |
 | `asian_30d` | Geometric Asian (last 30 days) | 105 | — | Stage 2 |
 | `asian_arith` | Arithmetic Asian call | 105 | — | Stages 3, 5 |
 | `rare_barrier` | Up-and-in call (extension, defined only inside `exp_importance.py`) | 105 | 160 | Stage 5 |
@@ -61,8 +61,9 @@ Every experiment script also takes `--analyze-only` on its own, e.g.
 
 ```
 Numerical-project-G07/
-  README.md  requirements.txt  .gitignore  HANDOFF.md  WORKPLAN.md  run_all.py
+  README.md  requirements.txt  .gitignore  run_all.py
   src/
+    __init__.py
     config.py      — Scenario dataclass and frozen constants           (Stage 1)
     analytic.py    — BS, barrier, BGK, geometric Asian closed forms    (Stage 1)
     results.py     — log_result() and load_all_results()               (Stage 1)
@@ -93,7 +94,7 @@ Numerical-project-G07/
   results/
     raw/        — one CSV per (person, experiment_id)
     figures/    — all generated plots
-    tables/     — LaTeX/markdown tables
+    tables/     — markdown findings and CSV summary tables
   report/
     proposal.md
     sections/
@@ -105,7 +106,7 @@ Numerical-project-G07/
       06_importance_sampling.md (Stage 5)
       07_comparison.md      (Stage 5)
       08_conclusion.md      (Stage 5)
-    final_report.md         (Stage 6)
+    final_report.md         (Stage 6: all sections assembled, abstract, contribution matrix, references)
   resources/
     CSE 402 Course Outline.pdf
     Optimizing_Exotic_Option_Pricing_Monte_Carlo_Simul.pdf
@@ -143,7 +144,7 @@ Tables: each script also writes `results/tables/<topic>_summary.csv` and
 `master_efficiency.csv`, `master_findings.md`). Report numbers are quoted from
 the `*_findings.md` files.
 
-## Verified Reference Values (§2)
+## Verified Reference Values
 
 | Quantity | Value |
 |---|---|
@@ -157,8 +158,13 @@ the `*_findings.md` files.
 paper barrier **7.094133 ± 0.000096**, deep barrier **3.385730 ± 0.001014**
 (64 RQMC scrambles × 65,536, `zaki_qmc.csv`), arithmetic Asian **≈3.16298**
 (64 scrambles, `tamzeed_master_reference.csv`), geometric Asian **3.000200**
-(discrete closed form). WORKPLAN §2's "≈7.076" for the 252-step barrier is
-superseded (Stage 2 finding).
+(discrete closed form). The initial plan's "≈7.076" for the 252-step barrier is
+superseded (Stage 2 finding, report §3.5).
+
+## Report and handoff
+
+- The full report is `report/final_report.md`, assembled from
+  `report/sections/01–08`. Edit the section files, then re-assemble.
 
 ## License
 

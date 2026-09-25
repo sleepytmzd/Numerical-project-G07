@@ -22,9 +22,9 @@ The paper does not define the factor. Below, all ratios are antithetic vs plain 
 | paper_asian_geo/put | -0.74 | 3.92, 3.92, 3.90, 3.91, 3.91 | 3.91 | 1.16 | 4.54 | 4.48 [2.29, 9.74] |
 | asian_30d/call | -0.32 | 1.57, 1.45, 1.47, 1.47, 1.48 | 1.48 | 1.20 | 1.78 | 2.77 [1.14, 10.20] |
 
-Verdict: read as a variance ratio at equal path count, the paper's numbers are **confirmed** for the barrier (≈1.5) and the geometric Asian call (≈1.3–1.4). The Asian put's VRF is ≈3.9, well above 1.3 — but the paper's put figure (Fig. 8) appears to be a copy of its call figure (Fig. 6), so its put result was likely never separately measured. In our implementation antithetic is also ~1.2x *cheaper* per path (half the normal draws), so the efficiency gain exceeds the VRF; the paper instead reports 'increased computational time'. The across-replicate bootstrap ratio (last column) is the §1.7.3 cross-check: with R=20 a variance ratio has a ~[0.4, 2.5]x sampling range, so it cannot resolve 1.3 vs 1.5; the within-run VRF (from N/2 iid pairs per replicate) can.
+Verdict: read as a variance ratio at equal path count, the paper's numbers are **confirmed** for the barrier (≈1.5) and the geometric Asian call (≈1.3–1.4). The Asian put's VRF is ≈3.9, well above 1.3 — but the paper's put figure (Fig. 8) appears to be a copy of its call figure (Fig. 6), so its put result was likely never separately measured. On this machine antithetic was also ~1.2x *cheaper* per path (half the normal draws), so the efficiency ratio exceeds the VRF; these timings are indicative only (in the authoritative master sweep antithetic costs about the same as plain, so its efficiency gain is about its VRF). The paper reports 'increased computational time' without numbers. The across-replicate bootstrap ratio (last column) is the acceptance-criterion-3 cross-check: with R=20 a variance ratio has a ~[0.4, 2.5]x sampling range, so it cannot resolve 1.3 vs 1.5; the within-run VRF (from N/2 iid pairs per replicate) can.
 
-## Discrete-monitoring barrier bias (WORKPLAN trap #5)
+## Discrete-monitoring barrier bias (report §3.5)
 
 - Continuous Reiner–Rubinstein value: 7.1055
 - BGK-corrected (252 steps): 7.0930
@@ -32,22 +32,22 @@ Verdict: read as a variance ratio at equal path count, the paper's numbers are *
 - Sweep, plain MC @65536 (mean of 20 reps): 7.1004 ± 0.0089
 - Plain-MC SE at N=1024: 0.394 — ~34x the bias.
 
-Note: WORKPLAN §2 lists the discrete value as ≈7.076 (bias ≈ −0.03); the precise value above shows the bias is ≈ −0.011 and BGK is accurate to ~0.001.
+Note: our initial plan listed the discrete value as ≈7.076 (bias ≈ −0.03); the precise value above shows the bias is ≈ −0.011 and BGK is accurate to ~0.001.
 
-## Claim 4 — scheme choice (Euler / Euler–Maruyama / Milstein) is negligible
+## Claim 3 — scheme choice (Euler / Euler–Maruyama / Milstein) is negligible
 
 - euler_maruyama − exact (common random numbers, 1M paths): -0.00057 ± 0.00017
 - milstein − exact (common random numbers, 1M paths): -0.00105 ± 0.00001
 - For scale: plain-MC SE at N=65536 is 0.049.
 
-Verdict: **confirmed, and expected.** The scheme effect at dt=1/252 is O(dt) (~0.001, ~0.015% of the price) — statistically detectable only with common random numbers and ~50x smaller than the standard error of even a 65,536-path run. Both Euler–Maruyama and Milstein have weak order 1; Milstein improves only the strong (pathwise) order, so no accuracy gain on a price is expected. The paper never writes its schemes down, and its Figs. 2–4 show identical sample points, i.e. the same random numbers were reused, which makes near-identical plots unavoidable.
+Verdict: **confirmed, and expected.** The scheme effect at dt=1/252 is O(dt) (~0.001, ~0.015% of the price) — statistically detectable only with common random numbers and ~50x smaller than the standard error of even a 65,536-path run. Both Euler–Maruyama and Milstein have weak order 1; Milstein improves only the strong (pathwise) order, so no accuracy gain on a price is expected. The paper never writes its schemes down, and its Figs. 2–4 show identical sample points (shared random numbers or a duplicated figure); with shared random numbers near-identical plots are unavoidable.
 
-## 30-day-averaging geometric Asian call
+## Claim 4 — 30-day-averaging geometric Asian call
 
 - Discrete closed form, 30-point window: 6.7078; full 252-point window: 3.0002; vanilla call: 7.1281
 - MC (antithetic @65536, mean of 20 reps): 6.6984 ± 0.0066
 
-The paper states that for the 30-day window 'the exact closed-form solution remains identical to the previous examples'. Read literally (same value), this is false: shortening the window to 30 days more than doubles the price.
+The paper states that for the 30-day window 'the exact closed-form solution remains identical to the previous examples'. Read literally (same value), this is false: shortening the window to 30 days more than doubles the price. (We read '30 days' as 30 monitoring dates; a ~30-calendar-day window of ~21 trading days gives ≈6.84, so the verdict does not depend on the reading.)
 
 ## Acceptance check — fraction of replicates within 3 SE of the closed form
 

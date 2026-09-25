@@ -9,7 +9,8 @@ scenarios. This chapter puts all five on one footing:
 - one efficiency metric, `1/(variance × time)`;
 - one set of 252-date reference prices.
 
-It is the only chapter whose timings are authoritative (WORKPLAN §1.5).
+It is the only chapter whose timings are authoritative (by the group protocol,
+§2.5); every other chapter's timings are indicative.
 
 Files:
 
@@ -116,7 +117,8 @@ Four things stand out.
    RQMC gain 10²–10³ in efficiency on three of the four options. Antithetic
    variates, the base paper's only technique, gain nothing measurable at this
    R: every antithetic CI contains 1. That does not contradict the paper's
-   1.3–1.5×. The within-run VRFs here (1.4–1.5) agree with it and with Stage 2.
+   1.3–1.5×. The within-run VRFs here (1.4–1.5; 1.1 on the deep barrier) agree with it and
+   with Chapter 3.
    An efficiency gain of 1.2–1.5× simply cannot be resolved by 20 replicates
    whose variance estimates carry about ±32% relative error.
 2. **RQMC has the best point estimate everywhere,** but on the paper barrier and
@@ -135,7 +137,7 @@ each N (point estimate, from `master_findings.md`):
 | Scenario | N = 256 | 1,024 | 4,096 | 16,384 | 65,536 |
 |---|---|---|---|---|---|
 | Paper barrier | CV (1,151) | CV (1,715) | CV (772) ≈ RQMC | CV (2,477) ≈ RQMC | RQMC (2,260) ≈ CV |
-| Deep barrier | plain ≈ CV | RQMC (10.6) | RQMC (2.4) ≈ plain | RQMC (24) ≈ CV | RQMC (21) ≈ IS |
+| Deep barrier | plain ≈ CV | RQMC (10.6) ≈ antithetic | RQMC (2.4) ≈ plain | RQMC (24) ≈ CV | RQMC (21) ≈ IS |
 | Arithmetic Asian | CV (567) | CV (803) ≈ RQMC | CV (628) ≈ RQMC | CV (654) ≈ RQMC | RQMC (794) ≈ CV |
 | Geometric Asian | RQMC (32) | RQMC (81) | RQMC (214) | RQMC (741) | RQMC (791) |
 
@@ -208,7 +210,7 @@ what the technique exploits.
 | Scenario | Payoff structure | Consequence |
 |---|---|---|
 | Paper barrier (B = 110.68) | Almost a vanilla call: C_uo = 0.023 is 0.3% of the price | **CV:** the vanilla call is a nearly perfect control (ρ = 0.9997). **RQMC:** under the bridge, `S_T` depends on Sobol dimension 0 alone (§5.5), so the payoff is effectively one-dimensional. **IS:** the knock-in is not rare (60%), so there is little to gain. |
-| Deep barrier (B = 140) | Knock-in depends on the path *maximum*: a discontinuity across many dimensions; 33% of the value is exposed to missed crossings (§5.3) | **CV** collapses (ρ = 0.83, VRF 3): many vanilla-in-the-money paths never knock in. **RQMC** slows to `N^-0.60` (trap #4). **IS** attacks the moderate rarity (9% knock-in) directly and lands between them. |
+| Deep barrier (B = 140) | Knock-in depends on the path *maximum*: a discontinuity across many dimensions; 33% of the value is exposed to missed crossings (§5.3) | **CV** collapses (ρ = 0.83, VRF 3): many vanilla-in-the-money paths never knock in. **RQMC** slows to `N^-0.60` (§5.5). **IS** attacks the moderate rarity (9% knock-in) directly and lands between them. |
 | Arithmetic Asian | Smooth average, extremely close to the geometric average | **CV:** the geometric Asian is an almost exact control (ρ = 0.9995, VRF 976). **RQMC:** 75% of `Var(log G)` sits in Sobol dimension 0 (§5.6), a low effective dimension. The two tie. |
 | Geometric Asian | As above, but it *is* the closed form | Only RQMC applies. It gains ~800× at N = 65,536. |
 
@@ -217,7 +219,7 @@ fact, that the payoff is nearly a function of one Gaussian.** They win together
 on the paper barrier and the Asians, and they both weaken on the deep barrier,
 where that fact fails. IS exploits a *different* fact, rarity. So it is the
 only technique whose advantage *grows* as the barrier moves away: 2.8× → 8.6×
-here, and 47× at B = 160 in §6.7.
+here, and ≈49× at B = 160 in §6.7 (an indicative Chapter-6 timing).
 
 ### 7.6 Agreement with earlier stages
 
@@ -236,20 +238,20 @@ timings. It reproduces every earlier variance result:
 The RQMC VRFs differ by 11–18%. That is well inside their F-intervals, which
 span a factor of about 6.
 
-IS on the paper barrier gives 2.8× here and 5.9× in Chapter 6. The difference
+IS on the paper barrier gives 2.8× here and 6.3× in Chapter 6. The difference
 is not in the within-run VRF, which is 4.6 in both. It comes from the noisier
 across-replicate variance (VRF 3.9 vs 7.3, both inside each other's CI) and a
-slightly higher time ratio (1.38 vs 1.23). **This is exactly why a single
+higher time ratio (1.38 vs 1.14). **This is exactly why a single
 authoritative run is needed**, and why efficiency ratios at R = 20 should be
 read with their intervals.
 
-### 7.7 Acceptance (§1.7)
+### 7.7 Acceptance (§2.7)
 
-- **Within 3 SE (§1.7.1).** 84 of 85 method cells are within 3 SE of the
+- **Within 3 SE (criterion 1).** 84 of 85 method cells are within 3 SE of the
   252-date reference. The exception is plain MC on the paper barrier at
   N = 4,096 (z = 3.35). With 85 cells, about 0.25 such events are expected, so
   this one is unremarkable. No variance-reduced cell fails.
-- **CI coverage (§1.7.2).** Per-replicate 95% CI coverage is between 0.93 and
+- **CI coverage (criterion 2).** Per-replicate 95% CI coverage is between 0.93 and
   0.98 for every method with a valid SE. RQMC has no within-run CI by design;
   its error bars come from independent scrambles.
 - **t-intervals.** 77 of 85 cells' t-intervals (from their 20 replicates) cover
@@ -257,7 +259,7 @@ read with their intervals.
   are spread across methods and N (plain 4, antithetic 3, RQMC 1; none for the
   control variate or IS, and none on the deep barrier), with no pattern that
   would indicate a bias.
-- **RMSE, not variance (§1.7.4).** Every method is unbiased at 252 dates.
+- **RMSE, not variance (criterion 4).** Every method is unbiased at 252 dates.
   - At N = 65,536 the largest |bias|/SD of any cell is 0.51, and the largest
     bias² share of RMSE² is 21%.
   - With R = 20 the replicated mean itself fluctuates by SD/√20 ≈ 0.22·SD, so a
@@ -267,8 +269,10 @@ read with their intervals.
 
   This held **only because we measured against the 252-date reference**.
   Against the continuous formula, the −0.011 (paper) and −0.160 (deep)
-  monitoring biases would floor every RQMC and CV RMSE, and would reverse
-  several rankings (§5.3).
+  monitoring biases would floor every RQMC and CV RMSE. On the paper barrier,
+  for example, RQMC's RMSE slope would read −0.26 instead of −0.80 (§5.3), and
+  the deep barrier's 0.160 bias would exceed every variance-reduced method's
+  standard deviation, hiding the differences between them.
 
 ### 7.8 Caveats
 

@@ -6,8 +6,9 @@
 
 The base paper priced an up-and-in barrier call and a geometric Asian option by
 Monte Carlo. It tried one variance-reduction technique, antithetic variates,
-and named "more advanced variance reduction techniques" as its priority for
-future work. Its implicit question was *how much further can variance be
+and pointed to "advanced variance reduction techniques" as the direction for
+future work (its conclusion: prioritize variance reduction over new random-walk
+models). Its implicit question was *how much further can variance be
 reduced, and at what cost?*
 
 At N = 65,536, on one machine and at equal wall-clock time (Chapter 7), the
@@ -16,7 +17,7 @@ answer comes in three tiers:
 | Tier | Techniques and gain |
 |---|---|
 | **Structural techniques** | **Control variates** and **RQMC with a Brownian bridge**: 10²–10³× the efficiency of plain Monte Carlo on the paper barrier (1,602× and 2,260×), the arithmetic Asian (770× and 794×) and the geometric Asian (RQMC 791×) |
-| **Rare-event technique** | **Importance sampling**: 3–9× on the frozen barriers, rising to 47× (Chapter 6) where knock-in is genuinely rare (B = 160) |
+| **Rare-event technique** | **Importance sampling**: 3–9× on the frozen barriers, rising to ≈49× (Chapter 6, indicative timing) where knock-in is genuinely rare (B = 160) |
 | **The paper's technique** | **Antithetic variates**: a real variance ratio of 1.1–1.5×, but an efficiency gain that cannot be told apart from 1 at R = 20 |
 
 The spread between the best and the worst is three orders of magnitude. The
@@ -51,7 +52,7 @@ Two qualifications make the recommendation precise. Both follow from
    loose ε. It reaches one cent in 11 ms, against RQMC's 48 ms.
 2. **Genuinely rare knock-in.** When the knock-in probability is a few percent
    or lower, importance sampling is the specialist tool. Its gain grows as the
-   event gets rarer (2.8× → 8.6× → 47× across B = 110.68 → 140 → 160), while the
+   event gets rarer (2.8× → 8.6× → ≈49× across B = 110.68 → 140 → 160), while the
    control variate collapses (VRF 3 at B = 140).
 
    IS and RQMC exploit different structure, so they combine naturally. That
@@ -59,7 +60,7 @@ Two qualifications make the recommendation precise. Both follow from
 
 ### 8.3 Discussion
 
-**Variance reduction is what makes the discretization bias visible (trap #5).**
+**Variance reduction is what makes the discretization bias visible.**
 A daily-monitored barrier is worth less than its continuous-formula value,
 because crossings between monitoring dates are missed. The monitoring biases
 are:
@@ -67,10 +68,12 @@ are:
 - −0.011 on the paper barrier (7.0941 vs 7.1055);
 - −0.160 on the deep barrier (3.3857 vs 3.5453).
 
-At the paper's sample sizes, plain MC cannot see even the larger one. Its SE at
-N = 1,024 is about 0.39 on the paper barrier, 34 times the bias. With the
-control variate or RQMC, the replicated RMSE at N = 65,536 is about 6 × 10⁻⁴.
-That resolves the bias at more than 50 SE (§4.4, §5.3).
+At the paper's sample sizes, plain MC cannot see the paper barrier's bias at
+all: its SE at N = 1,024 is about 0.39, 34 times the bias. Even the deep
+barrier's much larger bias is only about 0.4 of a plain SE at that N (SE 0.36).
+With the control variate or RQMC, the RMSE of a single estimate at N = 65,536 on
+the paper barrier is 1 × 10⁻³ (CV) and 6 × 10⁻⁴ (RQMC). The replicated mean then
+resolves the bias at more than 50 standard errors (§4.4, §5.3).
 
 The same fact nearly corrupted our own comparison. Measured against the
 continuous formula, every good method's RMSE hits a floor at the bias, and its
@@ -106,18 +109,18 @@ for a practitioner. It folds rate, constant and overhead into one number.
 
 | Paper's claim | Our verdict |
 |---|---|
-| Antithetic gives 1.5× (barrier) and 1.3× (Asian) | Confirmed as variance ratios (Chapter 3). As *efficiency* it is not resolvable at R = 20 (all master-sweep CIs contain 1). |
-| Discretization scheme choice is negligible | True, but a tautology: both schemes have weak order 1, and the paper reused its random numbers across schemes (§5.8). |
-| Convergence "stabilizes" at about 5,000 / 750–1,000 paths | Not supported: error keeps falling as `N^-1/2` with no plateau (§3.4). |
-| The Asian put behaves like the call (its Figure 8) | Its antithetic VRF is 3.9×, not ≈1.3×, and the paper's put figure appears to duplicate its call figure (§3.4). |
+| Antithetic gives 1.5× (barrier) and 1.3× (Asian); the factor is never defined | Confirmed as variance ratios (1.47 / 1.35, Chapter 3). As *efficiency* it is not resolvable at R = 20 (at N = 65,536 every master-sweep CI contains 1). The Asian put's VRF is 3.9×, and the paper's put figure appears to duplicate its call figure (§3.4). |
+| Discretization scheme choice is negligible | True (≈0.001 at daily steps), but expected from theory: both schemes have weak order 1, and the paper's three scheme figures show identical points (§3.4, §5.8). |
+| Convergence "stabilizes" at about 5,000 / 750–1,000 paths | Not supported as a convergence property: error keeps falling as `N^-1/2` with no plateau, and the CI is still ±5% / ±12% wide at those N (§3.4). |
+| The 30-day-averaging closed form "remains identical" | False as a value: 6.708 against 3.000 for full averaging (§3.4). |
 
 **Corrections we made to our own plan.** A relay project inherits its plan's
 errors. We report ours because each one would have changed a number in this
 report.
 
-1. **The 252-step barrier reference.** It is 7.0941, not the WORKPLAN's
-   ≈7.076. The monitoring bias is therefore −0.011, not −0.03 (Stage 2, §3.5).
-2. **The heuristic IS drift.** It needs a division by σ, since the WORKPLAN's
+1. **The 252-step barrier reference.** It is 7.0941, not our plan's ≈7.076.
+   The monitoring bias is therefore −0.011, not −0.03 (Stage 2, §3.5).
+2. **The heuristic IS drift.** It needs a division by σ, since the plan's
    formula is a log-drift (§6.2).
 3. **`deep_barrier` is not a rare event.** It has a 9.3% knock-in rate, so the
    rare-event demonstration needed B = 160 (§6.7).
@@ -154,8 +157,24 @@ report.
 - **The arithmetic-Asian reference is itself an RQMC estimate** (64
   independent scrambles, SE 6.4 × 10⁻⁵). It is independent of the sweep's
   scrambles, and it agrees with the control-variate mean (3.16287, 0.7 SE) and
-  with Stage 3's 2M-path plain MC (3.16252 ± 0.0043). A bias shared by all RQMC
+  with Stage 3's 2M-path plain MC (3.16252 ± 0.0043, 1 SE). A bias shared by all RQMC
   runs cannot be excluded by construction, but nothing suggests one.
+- **Estimators validated only for the exact scheme.** Every experiment
+  simulates with the exact log-GBM scheme. Two estimators would be biased under
+  the other schemes, and we did not add guards for this:
+  - importance sampling under Milstein, where the drift shift also changes the
+    correction term, so the likelihood ratio no longer undoes it (about 0.02 on
+    `E[S_T]` at daily steps with the deep barrier's θ; §6.1);
+  - the control variate under Euler–Maruyama or Milstein, whose control means
+    are exact-GBM prices, so the control's own O(Δt) bias leaks in (§4.1).
+- **Minor analysis caveats.** The barrier-bias sweep (§4.4) reuses seeds across
+  its three step counts, so the levels are weakly correlated.
+  `benchmark.summarize` reports 0% (not NaN) coverage for RQMC rows; Chapters 5
+  and 7 override it, but other callers must too.
+- **Reconstructing the paper.** The base paper states no equations, step count,
+  seed or Asian parameters. Our replication fixes these at the most plausible
+  values (daily steps, K = 105, the barrier's market parameters). Every verdict
+  in Chapter 3 is phrased to hold under the alternatives we could identify.
 
 ### 8.5 Future work
 

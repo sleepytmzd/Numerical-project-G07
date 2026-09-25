@@ -19,14 +19,17 @@ call/put. It then checks the paper's claims one by one.
 
 All scenarios use `S0=100, r=0.03, sigma=0.2, T=1.0`, `N_STEPS=252` (daily
 monitoring), `N_GRID=[256, 1024, 4096, 16384, 65536]`, and `R=20` replications
-per cell, seeded from `SeedSequence(402)` (WORKPLAN §1.5).
+per cell, seeded from `SeedSequence(402)` (§2.3).
 
 - The barrier scenario (`K=105, B=110.6772`) is run under all three
   discretization schemes. The schemes share random numbers, so the comparison
   between them is paired.
 - The Asian scenarios are run under the `exact` scheme: `paper_asian_geo` call
   and put with `K=105`, and `asian_30d`, which averages only the final 30
-  trading days.
+  trading days (monitoring dates).
+- The paper states no Asian parameters. We use the barrier's `S0, r, sigma, T`
+  and `K=105`, which matches the strike line in its Fig. 5. "Final 30 days" is
+  our reading of the paper's "final 30 days of the contract" (see Claim 4).
 
 Two high-precision reference runs back the sweep:
 
@@ -55,11 +58,12 @@ cell) is **91%–98%**. With 100 Bernoulli(0.95) trials, the sampling spread is
 about ±4 points, so every cell is consistent with the nominal 95%.
 
 **3-SE check.** Between 98% and 100% of replicates fall within 3 SE of the
-closed form. **Acceptance criteria §1.7.1 and §1.7.2 are met.**
+closed form. **Acceptance criteria 1 and 2 (§2.7) are met.**
 
 **Barrier benchmark.** For the barrier, "closed form" means the *continuous*
-Reiner–Rubinstein value (7.1055) that the paper used. Our payoff is monitored
-discretely, and its true price is 7.0941 (§3.4). The 0.011 gap is far below
+Reiner–Rubinstein value, 7.1055. That is the only price the paper states, and it
+matches this formula at T = 1. Our payoff is monitored discretely, and its true
+price is 7.0941 (§3.5). The 0.011 gap is far below
 the per-run SE at every N in the grid (≥0.049), so coverage is unaffected.
 
 ### 3.3 Antithetic variates
@@ -94,25 +98,36 @@ The table compares antithetic and plain at equal total path count:
   close to linear in the path, and antithetic variates cancel linear
   components exactly.
 - **Why the barrier and 30-day call behave alike.** Both are close to a vanilla
-  call: the up-and-out leg is worth only 0.03, and a 30-day average is nearly
-  the terminal price.
-- **Why the efficiency gain exceeds the VRF.** Antithetic draws half as many
-  normals per path, so it is ~1.2× cheaper per path.
+  call: the up-and-out leg is worth only 0.02 under continuous monitoring (0.034
+  at 252 dates), and a 30-day average is nearly the terminal price.
+- **Why the efficiency gain exceeds the VRF here.** Antithetic draws half as
+  many normals per path, so on this machine it was ~1.2× cheaper per path.
+
+**These timings are indicative.** In the authoritative, interleaved master
+sweep (Chapter 7) antithetic costs about the same as plain MC on these options
+(time ratio 0.94–0.99). Its efficiency gain there is therefore about its
+variance reduction factor: 1.5 (barrier) and 1.4 (geometric Asian) from the
+within-run SEs. The VRFs above are timing-free and are the robust result.
 
 **The across-replicate bootstrap is too noisy to use here.** With R=20, the
-bootstrap efficiency ratio required by §1.7.3 is very noisy: at N=65536 it is
+bootstrap efficiency ratio required by criterion 3 (§2.7) is very noisy: at N=65536 it is
 0.85 [0.38, 1.91] for the barrier. That run happened to draw a low plain
 variance and a high antithetic variance, as the table above shows. A ratio of
 two 20-sample variances has a sampling range of roughly [0.4, 2.5]×. That test cannot tell 1.3 from 1.5, so
 we rely on the within-run VRF, where each replicate contributes up to 32,768
 i.i.d. pairs.
 
-### 3.4 Testing the paper's claims (Stage-2 task 8)
+### 3.4 Testing the paper's claims
 
-Each verdict below is phrased to be no stronger than the evidence.
+Each verdict below is phrased to be no stronger than the evidence. Two facts
+about the paper frame all four: it contains **no equations** (schemes,
+closed forms and estimators are only named), and it reports **no Monte Carlo
+estimates, standard errors or timings as numbers**. Its claims can only be
+tested by rebuilding its setup, which is what this chapter does.
 
-**Claim 1: convergence "stabilizes" at ≈5000 simulations (barrier) and 750–1000
-(Asian). Verdict: not supported as a convergence property.**
+**Claim 1: "convergence stabilization at approximately 5000 simulations for
+Barrier options and 750-1000 for Asian options". Verdict: not supported as a
+convergence property.**
 
 - **No plateau.** `RMSE·√N` stays roughly constant across the grid (barrier:
   9.5–14.3; Asian call: 3.9–6.8, with R=20 noise), and the fitted slopes are
@@ -136,13 +151,20 @@ match.**
 - **Barrier and Asian call.** The paper never defines its factor. Read as a
   variance ratio at equal path count, our precise VRFs of **1.47** and
   **1.35** agree with 1.5 and 1.3.
-- **Asian put.** Its VRF is **3.91**, far from 1.3. The paper's put figure
-  (Fig. 8) appears identical to its call figure (Fig. 6): same points, and an
-  exact-value line at ≈3.0, whereas the true put price is 6.708. So the paper's
-  put result was probably never measured separately.
+- **Asian put.** The paper gives one factor, 1.3, for "Asian options", and no
+  separate put number. Our put VRF is **3.91**, far from 1.3. The paper's put
+  figure (Fig. 8) appears identical to its call figure (Fig. 6): same points,
+  and an exact-value line at ≈3.0, whereas the put's price is 6.708.[^put] Its
+  text also cites Fig. 7 for the put's convergence, but Fig. 7 is a volatility
+  sensitivity plot. The put result was probably never measured separately.
 - **Computational time.** The paper reports "increased computational time" for
-  antithetic. In our implementation antithetic is cheaper per path, so the
-  gain in *efficiency* terms is larger than the VRF (1.77× and 1.58×).
+  antithetic but gives no numbers. In our implementation antithetic is not
+  more expensive per path: in the master sweep it costs the same as plain MC
+  (§3.3), so its efficiency gain equals its VRF.
+
+[^put]: The discrete geometric put is 6.70776 and the 30-day-window call in
+Claim 4 is 6.70784. Both round to 6.708 by coincidence; they are different
+options with different formulas.
 
 **Claim 3: the discretization scheme (Euler / Euler–Maruyama / Milstein) has a
 negligible effect. Verdict: confirmed, and expected from theory.**
@@ -161,11 +183,15 @@ negligible effect. Verdict: confirmed, and expected from theory.**
   pathwise error is under 5% of Euler's.
 - **Two caveats about the paper's comparison.** The paper never writes down its
   schemes. It is therefore unclear how its "Euler" differs from
-  "Euler–Maruyama"; under the standard definitions they are the same scheme.
-  Also, its Figs. 2–4 show identical sample points, meaning the same random
-  numbers were reused across schemes. With a weak effect of ~0.001, identical
-  plots were unavoidable. The comparison could not have come out any other
-  way. Stage 4's strong/weak order study is the correct way to compare schemes.
+  "Euler–Maruyama". Under the standard definitions they are the same scheme;
+  alternatively "Euler" may mean Euler on log S, which is the exact scheme for
+  GBM (its path plots are titled "Euler discretisation random walks"). Also, its
+  Figs. 2–4 show identical sample points. Either the same random numbers were
+  reused across schemes or the same figure was used three times; we cannot tell
+  which. With a weak effect of ~0.001 at daily steps, plots with shared random
+  numbers would look identical anyway. The paper's step count is not stated,
+  and with coarse steps the effect would be larger. Chapter 5's strong/weak
+  order study (§5.7–5.8) is the correct way to compare schemes.
 
 **Claim 4: for the 30-day averaging window, "the exact closed-form solution
 remains identical to the previous examples". Verdict: false, if read as the
@@ -174,8 +200,13 @@ same value.**
 - **The correct benchmark.** Our general discrete-window formula (§2.4) gives
   **6.708** for the 30-day-window call, against **3.000** for full-window
   averaging and 7.128 for the vanilla call.
+- **The window is ambiguous, the verdict is not.** The paper says "the final
+  30 days of the contract"; we read that as 30 trading days (monitoring dates).
+  Its Fig. 9 shades about 30 calendar days, roughly 21 trading days, which gives
+  6.838. Every reading gives more than twice the full-window price.
 - **Monte Carlo agrees.** Antithetic MC at 65,536 paths gives 6.698 ± 0.007,
-  and an independent 4M-path check gives 6.7067 ± 0.0049.
+  and an independent ad-hoc 4M-path check (not part of the scripts) gives
+  6.7067 ± 0.0049.
 - **Why the price is so much higher.** A 30-day average removes far less
   variance than a 252-day average, so the option is worth more than twice as
   much.
@@ -184,28 +215,32 @@ same value.**
 
 ### 3.5 A correction to our own reference values
 
-WORKPLAN §2 and trap #5 give the 252-step discretely monitored up-and-in price
-as ≈7.076, a bias of ≈ −0.03. Our in-out-parity reference, with SE 0.0002,
+Our initial project plan gave the 252-step discretely monitored up-and-in
+price as ≈7.076, a bias of ≈ −0.03. Our in-out-parity reference, with SE 0.0002,
 gives **7.0941**:
 
 - the discretization bias is **−0.0114**, not −0.03;
 - the BGK-corrected value, 7.0930, is accurate to 0.0011.
 
-An independent 4M-path antithetic run gives 7.0914 ± 0.0052, and an external
-reviewer's separate 2M-path parity run gives 7.0945 ± 0.0002; both agree.
+Two independent ad-hoc checks, not part of the scripts, agree: a 4M-path
+antithetic run gives 7.0914 ± 0.0052, and a separately written 2M-path parity
+run gives 7.0945 ± 0.0002. The later stages confirm it with their own
+estimators: 7.093583 from the Stage-3 control variate (§4.4) and
+7.094133 ± 0.000096 from 64 RQMC scrambles (§5.3).
 
-The qualitative point of trap #5 still holds, and more strongly:
+The qualitative point of the plan still holds, and more strongly: the bias is
+invisible to plain Monte Carlo at practical N.
 
 - plain-MC SE at N=1024 is 0.39, **about 34× the bias**;
 - plain MC needs roughly `(12.5 / 0.011)² ≈ 1.3M` paths before the bias
   equals one SE.
 
-Stage 3 should use 7.094 as the target when it resolves this bias with control
-variates.
+Chapter 4 resolves this bias with the control variate, and Chapter 5 uses the
+64-scramble RQMC value as the reference for every barrier RMSE.
 
 ### 3.6 Summary
 
-| Acceptance criterion (§1.7) | Result |
+| Acceptance criterion (§2.7) | Result |
 |---|---|
 | Estimates within 3 SE of the closed form | ✅ 98–100% of replicates |
 | CI coverage ≈95% | ✅ 91–98% per cell (n=100) |
@@ -216,5 +251,5 @@ variates.
 |---|---|
 | "Stabilizes" at 5000 / 750–1000 paths | Not a convergence property: error keeps falling as `N^-1/2`, and the CIs are still ±5% / ±12% wide at those N |
 | Antithetic 1.5× barrier / 1.3× Asian | Confirmed as a variance ratio (1.47 / 1.35); the Asian put (3.9×) does not match, and its figure appears to duplicate the call's |
-| Scheme choice negligible | Confirmed (effect ≈0.001), but it follows from theory and from reusing the same random numbers |
-| 30-day Asian has "identical" closed form | False as a value: 6.708 vs 3.000 |
+| Scheme choice negligible | Confirmed (effect ≈0.001 at daily steps), but it follows from theory (weak order 1), and the paper's three figures are identical |
+| 30-day Asian has "identical" closed form | False as a value: 6.708 vs 3.000 (6.84 under the calendar-day reading) |

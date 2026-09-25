@@ -1,6 +1,8 @@
-# 1. Introduction
+## 1. Introduction
 
-## 1.1 Motivation
+*(Stage 1 — Arnob Biswas, 2105015)*
+
+### 1.1 Motivation
 
 Monte Carlo (MC) simulation is the dominant computational tool for pricing path-dependent
 exotic options, precisely because it requires no assumptions beyond the ability to simulate
@@ -10,9 +12,9 @@ the simulated path. The cost, however, is statistical: a naive MC estimate conve
 slow rate O(N^{−1/2}), so reducing its variance without introducing bias is one of the most
 practically consequential problems in computational finance.
 
-## 1.2 Theoretical Background
+### 1.2 Theoretical Background
 
-### 1.2.1 Options and Exotic Options
+#### 1.2.1 Options and Exotic Options
 
 A European option gives its holder the right (but not the obligation) to buy (call) or sell
 (put) an underlying asset at a fixed strike price K at maturity T. The celebrated
@@ -39,7 +41,7 @@ of S_t, not just its terminal value:
   lognormals is lognormal. The **arithmetic-average** Asian has no closed form, making it the
   canonical demonstration of Monte Carlo's indispensability.
 
-### 1.2.2 Monte Carlo Simulation Under GBM
+#### 1.2.2 Monte Carlo Simulation Under GBM
 
 Under the risk-neutral measure, the exact solution of GBM at discrete times is:
 
@@ -51,18 +53,22 @@ discretisation schemes are commonly used:
 - **Euler–Maruyama**: S_{t+Δt} = S_t + r·S_t·Δt + σ·S_t·√Δt·Z (strong order 0.5)
 - **Milstein**: adds the Itô correction +0.5·σ²·S_t·(Z²−1)·Δt (strong order 1.0)
 
-Both converge to the same expectation as Δt → 0 (weak order 1.0 for both), so the scheme
-choice cannot change a European-style price — a fact the base paper reports as a finding but
-which is, as we demonstrate, a mathematical tautology.
+Both have weak order 1.0, so at daily steps the choice of scheme changes a price only at
+O(Δt), about 0.001 here (§3.4, §5.7). That is far below Monte Carlo error at any practical N.
+The base paper reports the scheme choice as "negligible". That is true, but it is expected
+from theory rather than a discovery. Milstein's advantage is pathwise (strong order), and
+an expectation does not benefit from it.
 
-### 1.2.3 Variance Reduction Techniques
+#### 1.2.3 Variance Reduction Techniques
 
 The practical limitation of MC is its O(N^{−1/2}) convergence rate. **Variance reduction**
 techniques accelerate convergence by reducing the estimator's variance per sample:
 
 1. **Antithetic variates**: exploit the symmetry of the standard normal by pairing each path
-   generated with Z with a mirror path using −Z. This halves the variance of symmetric
-   payoffs and costs essentially nothing extra.
+   generated with Z with a mirror path using −Z. The pair average cancels the linear (odd)
+   part of the payoff exactly, and does nothing for the even part. The gain therefore depends
+   on how close to linear the payoff is: our measured variance reduction factors are 1.1–3.9
+   (§3.3, §7.2).
 
 2. **Control variates**: if a correlated quantity has a known expectation (e.g., the geometric
    Asian price for the arithmetic Asian), the optimal linear control subtracts a regression-
@@ -78,37 +84,53 @@ techniques accelerate convergence by reducing the estimator's variance per sampl
 4. **Importance sampling (IS)**: changes the simulation measure so that rare but important events
    (e.g., barrier crossings for deep out-of-the-money barriers) occur more frequently, then
    corrects with a likelihood ratio. The payoff of IS is largest for rare events but can
-   backfire if the importance distribution has heavy tails (diagnosed via effective sample size).
+   backfire if the importance distribution has heavy tails. We diagnose this with the effective
+   sample size and with how concentrated the payoff-weighted likelihood ratios are (§6.6).
 
-## 1.3 Related Work
+### 1.3 Related Work
 
-Gottimukkala (2024) prices an up-and-in barrier call (K=105, B=110.6772) and a geometric-
-average Asian option under GBM, applying three discretisation schemes and antithetic variates
-as the sole variance-reduction method. The paper's key findings are:
+Gottimukkala (2024) is a short concept paper (not peer reviewed). It uses MC under GBM with
+three "random walk models" (Euler, Euler–Maruyama and Milstein) and antithetic variates as
+the only variance-reduction method, and prices:
 
-- Discretisation scheme choice is negligible for pricing accuracy.
-- Antithetic variates reduce variance by approximately 1.5× for the barrier option and 1.3×
-  for the Asian option.
-- "Advanced variance reduction techniques" are identified as the top future-work item.
+- an up-and-in barrier call with S0=100, K=105, B=110.6772, σ=0.2, r=0.03, maturity one year;
+- a geometric-average Asian call and put, and the call with averaging over only the final
+  30 days of the contract. The Asian parameters are not stated in the paper.
 
-The paper does not quantify computational cost alongside variance, so its speedup claims are
-variance ratios, not efficiency ratios. It also never prices an option without a closed-form
-benchmark, limiting its demonstration of Monte Carlo's practical value.
+The paper contains no equations. It never writes down its schemes, closed forms or
+estimators, and it does not state its number of time steps or random seed. The only price it
+states is the barrier's exact value, 7.1055. That matches the continuous-monitoring
+Reiner–Rubinstein formula at T = 1. Its conclusions are:
 
-## 1.4 What the Base Paper Did vs. What We Add
+- The choice of "random walk model" has a negligible effect on accuracy.
+- Antithetic variates reduce variance and accelerate convergence "by 1.5 times for Barrier
+  options and 1.3 times for Asian options, despite increased computational time". The factor
+  is never defined.
+- Convergence "stabilizes" at about 5,000 simulations for the barrier and 750–1,000 for the
+  Asian.
+- Future work should "prioritize the development of variance reduction techniques over the
+  creation of new random walk models" (the abstract says "advanced variance reduction
+  techniques"). The paper also names models with changing volatility and interest rates.
+
+The paper mentions computational time only qualitatively and never puts cost and variance
+into one measure. It shows an arithmetic-average curve in a volatility-sensitivity plot
+(its Fig. 7), but never prices, validates or reports an option without a closed form. Chapter 3
+tests each of these claims against our own replication.
+
+### 1.4 What the Base Paper Did vs. What We Add
 
 | Aspect | Base Paper | Our Extension |
 |---|---|---|
-| **Options** | Up-and-in barrier call; geometric Asian | + Arithmetic Asian (no closed form) |
+| **Options** | Up-and-in barrier call; geometric Asian call, put and 30-day call | + Arithmetic Asian (no closed form), priced and validated; deep (B=140) and rare (B=160) barriers |
 | **Variance reduction** | Antithetic variates only | + Control variates, QMC (Sobol + Brownian bridge), importance sampling |
-| **Efficiency metric** | Variance reduction factor (VRF) | Efficiency = 1/(variance × time) with bootstrap CI |
-| **Error metric** | Std error | RMSE = √(bias² + variance), resolving discretisation bias |
-| **Scheme comparison** | Claims Euler ≠ Euler–Maruyama; "negligible" Milstein difference | Demonstrates this is a tautology (same weak order); shows strong vs weak order separation |
-| **Barrier bias** | Not discussed | Quantified ≈−0.03 at 252 steps; BGK correction; bias vs n_steps sweep |
-| **Discrete monitoring** | Continuous formulas only | Discrete Kemna–Vorst and BGK-corrected barrier |
-| **Rare events** | B=110.6772 (near the money) | B=140 (deep barrier) — demonstrates IS advantage |
+| **Efficiency metric** | An undefined "1.5×/1.3×" speedup; computational time mentioned only qualitatively | Efficiency = 1/(variance × time) with bootstrap CI; time to reach a target accuracy |
+| **Error metric** | CI plots only; no standard errors reported as numbers | RMSE = √(bias² + variance) against 252-date reference prices |
+| **Scheme comparison** | Three named but undefined schemes; "negligible" difference | Measured strong vs weak order (Euler–Maruyama 0.49 / Milstein 0.97 strong; both ≈1 weak); explains why prices cannot tell them apart |
+| **Barrier bias** | Discrete monitoring and the 1997 continuity correction mentioned in the background, not applied | Quantified at −0.011 (252 dates, 7.0941 vs 7.1055) and −0.160 on the deep barrier; BGK correction; bias vs n_steps sweep |
+| **Discrete monitoring** | Formulas not stated; the 7.1055 benchmark is the continuous value | Discrete Kemna–Vorst over the actual averaging window; high-precision 252-date barrier references |
+| **Rare events** | B=110.6772 only (the up-and-out leg is worth just 0.02) | B=140 (9.3% knock-in): IS 8.6×, second to RQMC's 21.3×; B=160 (1.9% knock-in): IS ≈49× (§6.7) |
 
-Our project addresses the exact gap the base paper identifies: "more advanced variance
-reduction techniques." We implement all three techniques named in the standard computational
-finance curriculum (control variates, QMC, IS) and compare them on a metric that accounts
-for the computational cost each technique introduces.
+Our project takes up the base paper's own future-work direction: advanced variance-reduction
+techniques. We implement the three standard ones from the computational-finance literature
+(control variates, QMC, IS). We compare them on a metric that accounts for the extra cost each
+one introduces.

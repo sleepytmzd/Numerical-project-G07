@@ -31,7 +31,7 @@ continuous path). `euler_maruyama` and `milstein` are included because the base
 paper uses them; Stage 4's `exp_scheme_order.py` quantifies their actual strong
 and weak convergence order.
 
-**Frozen interface.** Per the group's WORKPLAN, `generate_paths` never draws its
+**Frozen interface.** Per the group's frozen interface agreement, `generate_paths` never draws its
 own randomness — it takes a pre-built `normals` array of shape
 `(n_paths, n_steps)` (column *j* drives the step *j → j+1* transition for every
 path). This is what lets every later variance-reduction technique reuse the
@@ -40,8 +40,9 @@ exact same engine and payoff code:
 - **Antithetic variates** (this stage) build `normals` as `[Z, -Z]` — the two
   halves are mirror images, so `generate_paths` never needs to know it is being
   used antithetically.
-- **Quasi-Monte Carlo** (Stage 4) will build `normals` from a scrambled Sobol
-  sequence via `ndtri`, with a Brownian-bridge permutation of the columns.
+- **Quasi-Monte Carlo** (Stage 4) builds `normals` from a scrambled Sobol
+  sequence via `ndtri`, then applies the Brownian bridge as an orthogonal linear
+  map (`normals = z @ M`, §5.2), so the first Sobol dimension drives `W_T`.
 - **Importance sampling** (Stage 5) shifts the drift via the `drift_override`
   parameter — this replaces `mu = r` with an arbitrary drift `mu`, so it can
   pass `mu = r + sigma*theta` to simulate under the tilted measure `W̃ = W + theta*t`
@@ -166,12 +167,12 @@ two processes with different hash salts. `seed_int()` folds a `SeedSequence` dow
   methods' efficiencies by resampling replicates with replacement within each
   matched cell (default 2000 resamples). It returns a point estimate and a 95%
   percentile CI. `R = 20` replicates give roughly 32% relative standard error on
-  a variance estimate (WORKPLAN §1.7.3), so a bare point-estimate speedup means
+  a variance estimate (§2.7, criterion 3), so a bare point-estimate speedup means
   little.
   - Each side must select **exactly one** `(scenario, option, scheme, method,
     n_paths)` cell; otherwise the function raises. Pooling replicates across N
     mixes variance scales and produces a meaningless ratio. An early version of
-    our own analysis made this mistake (§3.3).
+    our own baseline analysis made this mistake before review caught it.
   - For estimators whose within-run SE is valid (plain and antithetic, both
     built on i.i.d. units), the ratio of mean squared SEs is a far more precise
     variance-reduction estimate than the 20-replicate bootstrap. §3.3 reports
@@ -189,9 +190,9 @@ paths at 252 steps, never requires allocating a single
 `(65536, 253)` array (~132 MB of floats, times several intermediate arrays);
 antithetic chunks in half-sized blocks of `Z` before mirroring. All timings in
 this stage were produced with `OMP_NUM_THREADS=1` set before importing NumPy,
-for comparability with later stages (per WORKPLAN §1.5, the *authoritative*
+for comparability with later stages (by the group protocol, the *authoritative*
 timings for the final efficiency table come from Stage 5's single-machine
-master run — this stage's numbers are indicative).
+master run in Chapter 7; this stage's numbers are indicative).
 
 ### 2.6 Shared plotting style
 
@@ -206,3 +207,28 @@ stage's plots, plus two reusable plot builders:
 - `loglog_rmse_plot` — RMSE vs. `N` on log-log axes, with the fitted slope
   reported in each series' legend entry and an `N^-1/2` reference line for
   comparison.
+
+### 2.7 Acceptance criteria
+
+Every chapter validates its estimators against the same four criteria, fixed
+before any experiment was run:
+
+1. **Unbiasedness.** Wherever a reference price exists, every estimator lands
+   within **3 standard errors** of it.
+2. **CI coverage.** Across the R replicates, the 95% confidence interval
+   contains the reference price about 95% of the time. With 20 replicates per
+   cell a single cell's coverage is noisy, so coverage is judged over many
+   intervals (pooled over N, or over cells).
+3. **Efficiency with uncertainty.** Every speedup is reported as
+   `efficiency = 1/(variance × time)` with a bootstrap CI. With R = 20, a
+   variance estimate has roughly 32% relative standard error, so a bare
+   variance-reduction number means little on its own.
+4. **RMSE, not variance alone.** A biased low-variance estimator scores well
+   on VRF and is still wrong, so we report `RMSE = sqrt(bias² + variance)`.
+   This matters for the discretely monitored barrier, whose continuous-formula
+   benchmark is off by the monitoring bias (§3.5, §5.3).
+
+RQMC has no valid within-run standard error. For RQMC (and, from Chapter 5 on,
+for every method), criterion 1 is also checked with a t-interval over the R
+replicate estimates, and criterion 2 is reported only for methods with a valid
+within-run SE.

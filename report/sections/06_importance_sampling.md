@@ -14,7 +14,7 @@ and corrects the bias with a likelihood ratio.
 This chapter covers:
 
 - the change of measure and why its likelihood ratio needs only `W_T` (§6.1);
-- how the drift is chosen, including a units correction to the WORKPLAN's
+- how the drift is chosen, including a units correction to our plan's
   heuristic (§6.2);
 - the results on three barriers of increasing rarity (§6.3–6.5);
 - the weight diagnostics that decide whether an IS result can be trusted (§6.6).
@@ -23,7 +23,7 @@ Files:
 
 - Estimator: `src/vr_importance.py`, registered as `"importance"`.
 - Experiment: `experiments/exp_importance.py`.
-- Tests: `tests/test_importance.py` (10 tests, including the task-0 smoke test).
+- Tests: `tests/test_importance.py` (10 tests, including a smoke test on a known tail probability).
 - Raw output: `results/raw/tamzeed_importance.csv` (975 rows: 900 sweep rows and
   75 θ-scan rows).
 - Derived tables: `results/tables/importance_summary.csv` and
@@ -50,14 +50,21 @@ The estimator is the sample mean of `L · Y`, where `Y` is the discounted payoff
 of the shifted path. It is unbiased for any fixed `θ`, because
 `E_θ[L·Y] = E_Q[Y]`.
 
-**The likelihood ratio telescopes (trap #8).** The per-step density ratios
+**The likelihood ratio telescopes.** The per-step density ratios
 multiply to a function of the *sum* of the increments, which is `W~_T`. So the
 barrier monitoring, the path maximum and the 252-step structure never enter the
 weight. The code computes `W~_T = √Δt · Σ_j Z_j` from the **same** normal array
 it passes to the engine, and never draws fresh normals for the weight. A test
 checks this path by path (`test_likelihood_ratio_uses_the_same_normals`).
 
-**Task-0 smoke test.** Before any option was involved, the same
+This identity is exact for the `exact` scheme, which every experiment uses,
+and for Euler–Maruyama. It does not hold under Milstein: there the drift shift
+also changes the scheme's correction term, so the weight no longer undoes the
+shift exactly. The estimate is then biased at O(Δt): about 0.02 on `E[S_T]` at
+daily steps with the deep barrier's θ, twenty times Milstein's own weak error
+(§8.4).
+
+**Smoke test.** Before any option was involved, the same
 `likelihood_ratio` function estimated `P(Z > 4) = 3.167 × 10⁻⁵` with a proposal
 shifted to mean 4. With 20,000 draws per run, plain MC would see about 0.6 hits.
 Across 50 independent runs the pooled IS estimate is within 3 SE of
@@ -78,7 +85,7 @@ barrier:
     log S0 + (r + σθ₀ − σ²/2) T = log B
     ⇒  θ₀ = [ log(B/S0)/T − (r − σ²/2) ] / σ.
 
-The WORKPLAN writes this without the final `/σ`. That expression is a
+Our initial plan wrote this without the final `/σ`. That expression is a
 *log-price drift*, not the Brownian shift that `drift_override = r + σθ`
 expects. With σ = 0.2 the uncorrected value would shift by only 20% of the
 intended amount. A unit test pins `E[log S_T] = log B` at `θ₀`.
@@ -98,7 +105,7 @@ risk-neutral terminal value. Then for any other `θ`:
 
 The pilot's runtime is included in every IS timing, and its path count is logged
 (`pilot_paths`, `total_paths_simulated`). There is no cross-entropy or adaptive
-machinery, as the WORKPLAN specifies.
+machinery, as the project plan specified.
 
 | Scenario | B | θ₀ | θ chosen by the pilot | Optimum of the full scan (§6.5) |
 |---|---:|---:|---|---|
@@ -111,7 +118,7 @@ picked the same grid point.
 
 ### 6.3 Headline: the deep barrier (B = 140)
 
-The WORKPLAN calls `deep_barrier` the rare-event case. Measuring it (diagnostic
+Our plan called `deep_barrier` the rare-event case. Measuring it (diagnostic
 draw, 65,536 paths) shows it is only moderately rare:
 
 | Scenario | P(knock in) under Q | P(payoff > 0) under Q | P(payoff > 0) under the IS proposal |
@@ -125,23 +132,25 @@ to six in ten. At N = 65,536 (from `importance_findings.md`):
 
 | Method | Mean price | RMSE | Within-run VRF | Efficiency vs plain [bootstrap 95% CI] | Efficiency vs antithetic |
 |---|---:|---:|---:|---|---|
-| Plain MC | 3.4107 | 0.0498 | 1 | 1 | 0.93 [0.30, 3.67] |
-| Antithetic | 3.3713 | 0.0476 | 1.11 | 1.07 [0.28, 3.20] | 1 |
-| **Importance** | **3.3881** | **0.0132** | **9.88** | **10.7 [2.8, 27.0]** | **10.0 [4.1, 20.7]** |
+| Plain MC | 3.4107 | 0.0498 | 1 | 1 | 1.00 [0.32, 3.88] |
+| Antithetic | 3.3713 | 0.0476 | 1.11 | 1.00 [0.26, 3.00] | 1 |
+| **Importance** | **3.3881** | **0.0132** | **9.88** | **8.8 [2.3, 22.8]** | **8.8 [3.5, 18.7]** |
 
 The 252-date reference is 3.385730 ± 0.001014 (Stage 4). IS lands 2.4 × 10⁻³
 from it, well inside its own SE. The within-run VRF of 9.9 is stable across N
 (9.6–10.6), and it matches the θ scan's minimum variance of 0.101 × plain.
 
 The across-replicate VRF (11.1, with 95% F-interval [4.4, 27.9]) agrees with it,
-but it is more than six times wider. That is the R = 20 limitation that Stage 2
+but its interval is much wider. That is the R = 20 limitation that Chapter 3
 already flagged. For IS the within-run SE is valid, because the weighted samples
 are i.i.d., so the within-run VRF is the precise number.
 
-Antithetic variates, the base paper's only technique, do **nothing** here: VRF
-1.11. The payoff is non-monotone in the Brownian path, since paths must go up to
-the barrier *and* finish in the money, so `Z` and `−Z` are barely
-anti-correlated.
+Antithetic variates, the base paper's only technique, do almost **nothing**
+here: VRF 1.11. The payoff is still monotone in every driving normal (raising
+any `Z_j` can only raise the path), so antithetic cannot hurt. But it is
+strongly non-linear: it is zero on about 91% of paths and pays only through an
+indicator times a kink. `Z` and `−Z` therefore give almost uncorrelated payoffs,
+and antithetic only cancels the linear part of a payoff.
 
 ### 6.4 The pilot cost, and when IS pays
 
@@ -149,11 +158,11 @@ The pilot is a fixed 10,000 paths regardless of N. At small N it dominates:
 
 | N | IS time ÷ plain time (deep) | IS efficiency vs plain (deep) | (paper) | (rare) |
 |---:|---:|---|---|---|
-| 256 | 51.8 | 0.27 [0.09, 0.68] | 0.05 [0.02, 0.13] | 0.71 [0.30, 2.17] |
-| 1,024 | 10.1 | 0.71 [0.26, 2.22] | 0.29 [0.10, 0.90] | 0.94 [0.35, 2.28] |
-| 4,096 | 3.2 | 3.9 [1.5, 12.6] | 0.64 [0.33, 1.24] | 10.4 [4.5, 31.4] |
-| 16,384 | 1.6 | 8.2 [3.7, 18.1] | 6.3 [3.0, 13.7] | 12.8 [6.5, 26.1] |
-| 65,536 | 1.03 | 10.7 [2.8, 27.0] | 5.9 [3.0, 11.2] | 46.6 [19.8, 107.8] |
+| 256 | 50.3 | 0.28 [0.09, 0.70] | 0.07 [0.02, 0.20] | 0.77 [0.33, 2.31] |
+| 1,024 | 9.5 | 0.76 [0.27, 2.37] | 0.50 [0.18, 1.45] | 0.95 [0.35, 2.24] |
+| 4,096 | 2.9 | 4.2 [1.6, 13.7] | 1.4 [0.7, 2.7] | 10.1 [4.4, 30.2] |
+| 16,384 | 1.7 | 7.9 [3.5, 17.2] | 8.3 [4.0, 17.8] | 14.4 [7.1, 29.8] |
+| 65,536 | 1.26 | 8.8 [2.3, 22.8] | 6.3 [3.3, 12.0] | 48.6 [20.9, 112.1] |
 
 At N = 256, IS is significantly *less* efficient than plain MC on the deep and
 paper barriers. The pilot is 39 times the production run. The break-even point
@@ -229,7 +238,7 @@ barrier, the top 1% of paths carry only 6% of the price, and no single path
 carries more than 1.7% of `Σw`. The estimate is therefore not resting on a
 handful of paths.
 
-We report both, as trap #8 asks. An IS result that quoted only its VRF, without
+We report both, as our plan required for any IS result. An IS result that quoted only its VRF, without
 these two columns, could not be distinguished from the overshoot failure in
 §6.5.
 
@@ -249,23 +258,23 @@ Its IS mean is 1.0649, next to the BGK approximation of 1.0617.
 At N = 65,536, IS reaches:
 
 - within-run VRF **22.2**;
-- efficiency vs plain **46.6× [19.8, 107.8]**;
-- efficiency vs antithetic **20.3× [9.2, 46.8]**.
+- efficiency vs plain **48.6× [20.9, 112.1]**;
+- efficiency vs antithetic **21.0× [9.5, 48.3]**.
 
-This is the regime the WORKPLAN had in mind: plain MC wastes 98% of its paths,
+This is the regime the plan had in mind: plain MC wastes 98% of its paths,
 and IS is the right tool.
 
 ### 6.8 Acceptance and summary
 
-- **Correctness (§1.7.1–2).** Every IS cell on the two referenced barriers is
+- **Correctness (§2.7, criteria 1–2).** Every IS cell on the two referenced barriers is
   within 3 SE of the 252-date reference (10/10), and every t-interval covers it
   (10/10). Per-replicate 95% CI coverage is 0.97 (deep) and 0.96 (paper).
-- **Sanity check (WORKPLAN §6.6), "IS wins big on `deep_barrier`, marginally on
+- **Pre-registered sanity check, "IS wins big on `deep_barrier`, marginally on
   `paper_barrier`".** It holds in direction:
-  - deep ≈ 10× (within-run VRF 9.9);
-  - paper ≈ 5–6× (within-run VRF 4.6).
+  - deep ≈ 9× (within-run VRF 9.9);
+  - paper ≈ 6× (within-run VRF 4.6).
 
-  "Big" is only true where the event is actually rare: 47× at B = 160. On the
+  "Big" is only true where the event is actually rare: ≈49× at B = 160. On the
   paper barrier the gain is modest for a second reason, the heuristic
   undershooting (§6.5), and not only because the event is common.
 - **Place in the comparison.** In the master sweep (Chapter 7), IS is the

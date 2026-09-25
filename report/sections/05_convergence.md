@@ -12,13 +12,13 @@ pseudo-random numbers with randomized quasi-Monte Carlo (RQMC) and ask how much
 faster than `N^-1/2` the error falls. For discretization error we measure the
 strong and weak order of the Euler–Maruyama and Milstein schemes. The base paper
 compared those two schemes, but it compared them in a way that could not show a
-difference (§5.7).
+difference (§5.8).
 
 - Estimator: `src/vr_qmc.py`.
 - Experiments:
   - `experiments/exp_qmc.py`;
   - `experiments/exp_scheme_order.py`.
-- Tests: `tests/test_qmc.py` (30 tests, including the task-0 smoke test).
+- Tests: `tests/test_qmc.py` (30 tests, including a smoke test on integrals with known values).
 - Raw outputs:
   - `results/raw/zaki_qmc.csv` (1028 rows: 900 sweep rows and 128 reference rows);
   - `results/raw/zaki_scheme_order.csv` (1600 rows).
@@ -42,7 +42,7 @@ That promises an error close to `N^-1`. Two caveats matter for option pricing:
    dimensions. There `(log N)^d` makes the bound useless. QMC still works well
    when the integrand has **low effective dimension**, meaning most of its
    variance depends on a few coordinates. The *path construction* decides which
-   coordinates those are (§5.5).
+   coordinates those are (§5.5–5.6).
 2. **Smoothness.** The bound needs `V(f) < ∞`. The fast rates also need
    smoothness. A kink (the call payoff `max(·,0)`) slows convergence, and a jump
    whose discontinuity is not aligned with the coordinate axes slows it
@@ -62,8 +62,10 @@ RQMC.
 
 1. It draws `qmc.Sobol(d=252, scramble=True, seed=rng).random_base2(m)` with
    `N = 2^m`.
-2. It rejects any N that is not a power of 2 (trap #2).
-3. It maps uniforms to normals only through the inverse CDF `ndtri` (trap #3).
+2. It rejects any N that is not a power of 2: a Sobol net is balanced only at
+   powers of 2, and other sizes silently degrade it towards the MC rate.
+3. It maps uniforms to normals only through the inverse CDF `ndtri`. Box–Muller
+   would mix coordinates and destroy the low-discrepancy structure.
 4. It moves every point to the centre of its dyadic cell before `ndtri`.
    scipy's Sobol points are multiples of `2^-30`. After the random digital
    shift, an exact 0 has probability `2^-30` per coordinate, and `ndtri(0) = −∞`.
@@ -113,11 +115,11 @@ were computed before any option was priced. Both use 32 scrambles at
 | `E[exp(a·Z)]`, d=8 (smooth) | 1.404571 | **−0.83** | −0.43 | 28.8× |
 | Gaussian orthant `P(X₁>0, X₂>0)`, ρ=0.5 (discontinuous, diagonal boundary) | 1/3 | **−0.77** | −0.50 | 17.8× |
 
-Both slopes are clearly steeper than `N^-1/2`, as task 0 requires.
+Both slopes are clearly steeper than `N^-1/2`, as the smoke test requires.
 
 ### 5.3 Measuring the error correctly: the barrier reference
 
-WORKPLAN §1.7.4 requires RMSE rather than variance. The target matters as much
+Acceptance criterion 4 (§2.7) requires RMSE rather than variance. The target matters as much
 as the metric. `benchmark.exact_price` returns the *continuous* Reiner–Rubinstein
 value for barriers. Our payoff is monitored daily, and Stages 2–3 showed that the
 two differ by about 0.011 on the paper barrier. Once RQMC's error drops below
@@ -136,10 +138,10 @@ stream separate from the sweep.
 
 Cross-checks for the paper barrier:
 
-- Stage 2's plain-MC in-out-parity value is 7.0941 ± 0.0002. The difference is
-  0.15 combined SE.
-- Stage 3's control-variate value is 7.093583 ± 0.00028. The difference is
-  1.86 combined SE.
+- Stage 2's plain-MC in-out-parity value is 7.0941 ± 0.0002 (1 SE). The
+  difference is 0.15 combined SE.
+- Stage 3's control-variate value is 7.093583 ± 0.00028 (1 SE, including the
+  spread of the replicates). The difference is 1.86 combined SE.
 
 **The effect is large.** Measured against the continuous formula, the paper
 barrier's RQMC RMSE-vs-N slope is **−0.26**; measured against the 252-date
@@ -158,7 +160,8 @@ The continuous price splits as follows:
 | B=110.68 | 6.861 (97%) | 0.245 (3%) | 5% |
 | B=140 | 2.375 (67%) | **1.171 (33%)** | **14%** |
 
-The deep barrier has 11× more value exposed to missed crossings, and it loses a
+A 11× larger *share* of the deep barrier's value is exposed to missed crossings
+(33% against 3%; 4.8× in absolute terms, 1.171 against 0.245), and it loses a
 larger fraction of that exposed value.
 
 BGK over-corrects on both barriers. It moves the price by 0.1675 where 0.1596
@@ -198,8 +201,8 @@ At N = 65,536:
 | Deep barrier | rqmc_incremental | 0.02467 | 0.02597 | 4.6 [1.8, 11.6] | 1.28 | 3.6 [1.3, 9.0] |
 
 The VRF CIs use the F-distribution for a ratio of two 20-sample variances. The
-efficiency CIs use Stage 2's `bootstrap_efficiency_ratio` (§1.7.3). Timings are
-indicative; Stage 5's master sweep is authoritative.
+efficiency CIs use Stage 2's `bootstrap_efficiency_ratio` (§2.7, criterion 3).
+Timings are indicative; Chapter 7's master sweep is authoritative.
 
 How the results develop with N:
 
@@ -214,26 +217,27 @@ How the results develop with N:
     only **0.4**: RQMC is *less* efficient than plain MC there.
   - The incremental construction is below 1 at N=256 on all three options.
   - The bridge pays off from N ≈ 1024 upwards (deep barrier 3.5×). The
-    incremental construction pays off only from N ≈ 4096.
+    incremental construction pays off from N ≈ 1024 on the Asian call and
+    only from N ≈ 4096 on the barriers.
 
 **Acceptance.**
 
-- **Within 3 SE (§1.7.1).** An RQMC estimate has no per-run CI, so each cell
+- **Within 3 SE (§2.7, criterion 1).** An RQMC estimate has no per-run CI, so each cell
   is checked with one t-interval built from its 20 scrambles. Every cell of
   every method lies within 3 SE of the reference (45/45).
-- **Coverage (§1.7.2).** The 95% t-interval covers the reference in 14/15
+- **Coverage (§2.7, criterion 2).** The 95% t-interval covers the reference in 14/15
   (plain), 14/15 (rqmc) and 15/15 (rqmc_incremental) cells.
 - **Plain-MC per-replicate CIs** cover the 252-date reference in 85–100% of
   replicates per cell. With 20 replicates per cell, that range is consistent
   with 95%.
 
-### 5.5 Why the rates differ by option (trap #4)
+### 5.5 Why the rates differ by option
 
-WORKPLAN trap #4 predicted slopes of about −0.8 to −1.0 for the Asian and only
+Our initial plan predicted slopes of about −0.8 to −1.0 for the Asian and only
 −0.5 to −0.7 for the barrier. Our results support the *mechanism* but not the
 *grouping*.
 
-- **Deep barrier: −0.60, VRF 45×. This is trap #4 as predicted.** The knock-in
+- **Deep barrier: −0.60, VRF 45×. This is as predicted.** The knock-in
   indicator depends on the path *maximum*. That is a discontinuous function of
   many bridge coordinates at once, and its discontinuity surface is not aligned
   with the coordinate axes. RQMC still helps, since it makes a good constant
@@ -257,12 +261,13 @@ WORKPLAN trap #4 predicted slopes of about −0.8 to −1.0 for the Asian and on
   well. The measured CI excludes −0.9; we report the measurement and the
   reason rather than the prior expectation.
 
-**WORKPLAN §6.6 sanity check** ("RQMC should beat MC more clearly on the Asian
-than on the barrier"):
+**Our plan's pre-registered sanity check** ("RQMC should beat MC more clearly on
+the Asian than on the barrier"; a very different outcome was to be treated as a
+possible bug):
 
 - It holds for the genuinely path-dependent deep barrier: 1052× against 45×.
 - It fails for the paper barrier, for the reason above.
-- We investigated before reporting it, as §6.6 asks, and it is not a bug:
+- We investigated before reporting it, as that check requires, and it is not a bug:
   - the RQMC mean agrees with two independent references (§5.3);
   - the bridge passes its orthogonality tests;
   - the behaviour is explained by the variance-share calculation;
@@ -356,7 +361,7 @@ At Δt = 1/256, the grid point closest to the paper's daily grid:
 These agree with Stage 2's common-random-number measurements at Δt = 1/252:
 −0.0006 (Euler–Maruyama) and −0.0011 (Milstein).
 
-### 5.8 What the base paper's scheme comparison should have measured (trap #7)
+### 5.8 What the base paper's scheme comparison should have measured
 
 The base paper concludes that the choice between "Euler", "Euler–Maruyama" and
 Milstein "has a negligible impact on simulation accuracy". Our measurements
@@ -364,8 +369,9 @@ support the conclusion but not its status as a *finding*:
 
 1. **Euler and Euler–Maruyama.** The paper never writes its schemes down. Under
    the standard definitions, "Euler" for an SDE *is* Euler–Maruyama, so two of
-   its three schemes are presumably one scheme under two names. The caveat,
-   already noted in §3.4, is that this is an inference.
+   its three schemes are presumably one scheme under two names; alternatively
+   "Euler" means Euler on log S, which is the exact scheme for GBM. Either way
+   this is an inference (§3.4).
 2. **Milstein.** Milstein's advantage is **strong** (pathwise) order: 0.97
    against 0.49 here, with a 66× smaller pathwise error at daily steps. A price
    is an expectation, so it depends on **weak** order, which is 1 for both
@@ -378,11 +384,12 @@ support the conclusion but not its status as a *finding*:
      **47×** smaller than the plain-MC SE at N=65,536 and **171×** smaller at
      the paper's N=5,000.
 
-   Stage 2 also found that the paper's Figs. 2–4 reuse the same random numbers.
-   Its scheme plots could not have come out differently, and "negligible" was
-   the result theory predicts. It is not a discovery. (WORKPLAN's wording,
-   that Milstein "cannot change" the expectation, is too strong: it does change
-   it, at O(Δt), as measured.)
+   Stage 2 also found that the paper's Figs. 2–4 show identical sample points
+   (shared random numbers or a duplicated figure). Its scheme plots could not
+   have come out differently, and "negligible" was the result theory predicts.
+   It is not a discovery. (Our initial plan's wording, that Milstein "cannot
+   change" the expectation, is too strong: it does change it, at O(Δt), as
+   measured.)
 3. **What should have been measured.** Strong and weak error against Δt, with
    common random numbers and fitted orders, as above. That is the only design
    that separates the schemes, and it shows what each is good for: Milstein
@@ -391,24 +398,24 @@ support the conclusion but not its status as a *finding*:
    scheme costs about the same (0.64 s against 0.54 s for Euler–Maruyama and
    0.77 s for Milstein per 65,536 paths at m=512) and has **zero**
    discretization error. The only discretization error left in this project is
-   the barrier's *monitoring* bias (§5.3; Stage 3). That is a property of the
+   the barrier's *monitoring* bias (§5.3, §4.4). That is a property of the
    contract's observation dates, not of the SDE scheme.
 
 ### 5.9 Summary
 
-| Requirement (WORKPLAN Stage 4) | Evidence |
+| Requirement (Stage 4 plan) | Evidence |
 |---|---|
-| Task 0: known integral, slope steeper than `N^-1/2` | Smooth exponential −0.83; Gaussian orthant −0.77; plain MC −0.43 / −0.50 |
+| Smoke test: known integral, slope steeper than `N^-1/2` | Smooth exponential −0.83; Gaussian orthant −0.77; plain MC −0.43 / −0.50 |
 | Scrambled Sobol, `random_base2` only, `ndtri`, R independent scrambles | `sobol_uniforms`; non-power-of-2 N raises; one scramble per replicate; within-run SE logged as NaN |
 | Brownian bridge | Orthogonal bridge matrix; tests for dimension 0 → `W_T` and dimensions 0–1 → midpoint |
 | Headline RQMC vs MC with fitted slopes | Asian −0.72, paper barrier −0.80, deep barrier −0.60 (plain ≈ −0.5); VRF at 65,536 = 1052 / 6988 / 45 |
-| Explain the barrier rate (trap #4) | Deep barrier matches trap #4; paper barrier ≈ a 1-D vanilla call under the bridge; variance-share table |
+| Explain the barrier rate | Deep barrier matches the prediction; paper barrier ≈ a 1-D vanilla call under the bridge; variance-share table |
 | Bridge vs incremental | Bridge 27–536× lower variance (Asian, paper barrier), 5–10× (deep barrier) |
 | Strong / weak order | Strong 0.49 / 0.97; weak 0.99–1.03 for both schemes; `E[S_T]` MC matches the analytic formula |
-| Trap #7 write-up | §5.8 |
-| Validation (§1.7) | 45/45 cells within 3 SE; t-interval coverage 43/45 |
+| Critique of the paper's scheme comparison | §5.8 |
+| Validation (§2.7) | 45/45 cells within 3 SE; t-interval coverage 43/45 |
 
-**Recommendation for Stage 5.**
+**Recommendation carried into Chapters 6–7.**
 
 - RQMC with a Brownian bridge is the most efficient technique measured so far
   on both the geometric Asian (efficiency 621×) and the near-the-money barrier
