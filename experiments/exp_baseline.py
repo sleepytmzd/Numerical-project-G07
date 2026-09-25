@@ -1,6 +1,4 @@
 """
-Stage 2 baseline experiment (Nafis Nahian, 2105007).
-
 Replicates the base paper's setup: plain MC and antithetic variates on the
 up-and-in barrier call (all 3 discretization schemes) and the geometric Asian
 call/put (full average + last-30-day window), across N_GRID x R=20.
@@ -56,7 +54,7 @@ METHODS = ["plain", "antithetic"]
 
 
 def simulate():
-    """Barrier (3 schemes) x [plain, antithetic] x N_GRID x R, then the Asian cases."""
+    # Barrier (3 schemes) x [plain, antithetic] x N_GRID x R, then the Asian cases
     # log_result appends, so start from a clean file or re-runs duplicate rows
     (_RESULTS_DIR / f"{PERSON}_{EXPERIMENT_ID}.csv").unlink(missing_ok=True)
     run_sweep(
@@ -90,7 +88,7 @@ def make_figures(df, barrier_ref=None):
     TABLES_DIR.mkdir(parents=True, exist_ok=True)
     summary.to_csv(TABLES_DIR / "baseline_summary.csv", index=False)
 
-    # --- baseline_barrier_ci.png: exact scheme, plain vs antithetic ---
+    # baseline_barrier_ci.png: exact scheme, plain vs antithetic
     fig, ax = plt.subplots(figsize=(6, 4.2))
     sub = _cell(summary, "paper_barrier", "call", "exact")
     exact = exact_price(SCENARIOS["paper_barrier"], "call")
@@ -103,7 +101,7 @@ def make_figures(df, barrier_ref=None):
     save_fig(fig, "baseline_barrier_ci.png")
     plt.close(fig)
 
-    # --- baseline_asian_call_ci.png / put ---
+    # baseline_asian_call_ci.png / put
     for option, name in [("call", "baseline_asian_call_ci.png"),
                          ("put", "baseline_asian_put_ci.png")]:
         fig, ax = plt.subplots(figsize=(6, 4.2))
@@ -114,7 +112,7 @@ def make_figures(df, barrier_ref=None):
         save_fig(fig, name)
         plt.close(fig)
 
-    # --- baseline_rmse_vs_n.png: RMSE-vs-N for barrier + both Asian cases ---
+    #  baseline_rmse_vs_n.png: RMSE-vs-N for barrier + both Asian cases 
     fig, axes = plt.subplots(1, 3, figsize=(15, 4.2), sharey=False)
     for ax, (scenario, option, title) in zip(axes, [
         ("paper_barrier", "call", "Barrier"),
@@ -128,7 +126,7 @@ def make_figures(df, barrier_ref=None):
     save_fig(fig, "baseline_rmse_vs_n.png")
     plt.close(fig)
 
-    # --- baseline_scheme_comparison.png: exact vs euler_maruyama vs milstein (plain MC) ---
+    #  baseline_scheme_comparison.png: exact vs euler_maruyama vs milstein (plain MC) 
     fig, ax = plt.subplots(figsize=(6.5, 4.2))
     exact = exact_price(SCENARIOS["paper_barrier"], "call")
     for scheme in SCHEMES:
@@ -146,7 +144,7 @@ def make_figures(df, barrier_ref=None):
     save_fig(fig, "baseline_scheme_comparison.png")
     plt.close(fig)
 
-    # --- coverage_table.png ---
+    #  coverage_table.png 
     make_coverage_table(summary)
     return summary
 
@@ -181,10 +179,7 @@ def make_coverage_table(summary):
         w.writerows(rows)
 
 
-# ---------------------------------------------------------------------------
 # High-precision reference computations (independent of the N_GRID sweep)
-# ---------------------------------------------------------------------------
-
 def discrete_barrier_reference(n_paths=4_000_000, block=20_000):
     """Precise 252-step discretely-monitored up-and-in price via in-out parity:
     UIC = BS_call - E[UOC_discrete]. The UOC payoff is small and low-variance, so
@@ -202,8 +197,8 @@ def discrete_barrier_reference(n_paths=4_000_000, block=20_000):
 
 
 def scheme_differences_crn(n_paths=1_000_000, block=20_000):
-    """E[payoff_scheme - payoff_exact] on the barrier with COMMON random numbers,
-    so the scheme effect is not buried under independent MC noise."""
+    # E[payoff_scheme - payoff_exact] on the barrier with COMMON random numbers,
+    # so the scheme effect is not buried under independent MC noise
     scen = SCENARIOS["paper_barrier"]
     rng = np.random.default_rng(make_seed_seq("baseline_scheme_crn"))
     payoff = payoff_for(scen)
@@ -221,10 +216,7 @@ def scheme_differences_crn(n_paths=1_000_000, block=20_000):
     return out
 
 
-# ---------------------------------------------------------------------------
 # Paper-claim verification (Stage 2, task 8)
-# ---------------------------------------------------------------------------
-
 def _rows(df, scenario, option, method, n_paths=None, scheme="exact"):
     m = ((df["scenario"] == scenario) & (df["option_type"] == option)
          & (df["method"] == method) & (df["scheme"] == scheme))
@@ -264,7 +256,6 @@ def antithetic_table(df):
 
 
 def stabilization_table(summary):
-    """What does 'stabilized' at the paper's N actually mean in accuracy terms?"""
     out = []
     n_max = max(N_GRID)
     for scenario, option, paper_ns in [("paper_barrier", "call", [5000]),
@@ -288,7 +279,7 @@ def verify_paper_claims(df, summary, barrier_ref):
          "plus two high-precision reference runs (in-out parity barrier price, "
          "common-random-number scheme differences).\n"]
 
-    # ---- Claim 1: stabilization ----
+    # Claim 1: stabilization
     L.append("## Claim 1 — convergence 'stabilizes' at ~5000 (barrier) / 750–1000 (Asian)\n")
     L.append("| Option | Per-path SD | RMSE·√N by N (256→65536) | Fitted RMSE slope "
              "| 95% CI half-width at paper's N | N for ±1% |")
@@ -303,7 +294,7 @@ def verify_paper_claims(df, summary, barrier_ref):
              "still several percent of the price wide. The claim describes how the paper's "
              "log-x CI plots look, not a change in convergence behaviour.\n")
 
-    # ---- Claim 2: antithetic ----
+    # Claim 2: antithetic
     L.append("## Claim 2 — antithetic 'accelerates' convergence 1.5x (barrier), 1.3x (Asian)\n")
     L.append("The paper does not define the factor. Below, all ratios are antithetic vs plain "
              "at the SAME total number of simulated paths (antithetic: N/2 pairs).\n")
@@ -329,7 +320,7 @@ def verify_paper_claims(df, summary, barrier_ref):
              "cannot resolve 1.3 vs 1.5; the within-run VRF (from N/2 iid pairs per replicate) "
              "can.\n")
 
-    # ---- Discrete-monitoring bias (report §3.5) ----
+    # Discrete-monitoring bias (report §3.5)
     scen = SCENARIOS["paper_barrier"]
     cont = exact_price(scen, "call")
     bgk = exact_price_bgk(scen, "call", N_STEPS)
@@ -347,7 +338,7 @@ def verify_paper_claims(df, summary, barrier_ref):
     L.append("\nNote: our initial plan listed the discrete value as ≈7.076 (bias ≈ −0.03); the precise "
              "value above shows the bias is ≈ −0.011 and BGK is accurate to ~0.001.\n")
 
-    # ---- Claim 3: schemes ----
+    # Claim 3: schemes
     crn = scheme_differences_crn()
     L.append("## Claim 3 — scheme choice (Euler / Euler–Maruyama / Milstein) is negligible\n")
     for s, (d, se) in crn.items():
@@ -362,7 +353,7 @@ def verify_paper_claims(df, summary, barrier_ref):
              "random numbers or a duplicated figure); with shared random numbers near-identical "
              "plots are unavoidable.\n")
 
-    # ---- Claim 4: 30-day Asian ----
+    # Claim 4: 30-day Asian
     s30 = SCENARIOS["asian_30d"]
     a30 = _rows(df, "asian_30d", "call", "antithetic", max(N_GRID))
     L.append("## Claim 4 — 30-day-averaging geometric Asian call\n")
@@ -377,7 +368,7 @@ def verify_paper_claims(df, summary, barrier_ref):
              "'30 days' as 30 monitoring dates; a ~30-calendar-day window of ~21 trading days "
              "gives ≈6.84, so the verdict does not depend on the reading.)\n")
 
-    # ---- 3-SE acceptance check ----
+    # 3-SE acceptance check
     L.append("## Acceptance check — fraction of replicates within 3 SE of the closed form\n")
     ok = df[df["scheme"] == "exact"].copy()
     ok["within3"] = (ok["price"] - ok["exact_price"]).abs() <= 3 * ok["std_error"]
