@@ -1,23 +1,4 @@
 """
-Stage 5: importance sampling for up-and-in barrier calls (Tamzeed Mahfuz, 2105012).
-
-1. Sweep: plain / antithetic / importance on deep_barrier (B=140) and
-   paper_barrier (B=110.68) across N_GRID x R=20.
-2. Extension: the same on ``rare_barrier`` (B=160), a runtime-only scenario
-   (``dataclasses.replace`` of deep_barrier, NOT added to config.py).
-   deep_barrier knocks in on only ~10% of paths, so it is not truly rare; B=160
-   (~2%) shows where the rare-event premise actually holds.
-3. Theta scan: fixed-theta IS at N=65,536 over theta = theta0 * [0, 3] with
-   common random numbers, giving the full per-path-variance curve that the
-   7-point pilot grid samples.
-4. Weight diagnostics (analysis time, deterministic seed): the likelihood-ratio
-   distribution at the tuned theta, ESS, max weight, knock-in rates under P
-   and under the proposal.
-
-Bias/RMSE use the 252-date references (Stage 4's RQMC reference rows), never
-the continuous formula.  rare_barrier has no independent reference, so only
-variance-based metrics are reported for it.
-
 Usage
 -----
     OMP_NUM_THREADS=1 python experiments/exp_importance.py
@@ -119,7 +100,6 @@ def load_results():
 # ---------------------------------------------------------------------------
 
 def is_diagnostics(df):
-    """Per (scenario, N): tuned theta and weight statistics from the logged extras."""
     rows = []
     g_is = df[df["method"] == "importance"]
     for (scenario, n), g in g_is.groupby(["scenario", "n_paths"]):
@@ -135,7 +115,6 @@ def is_diagnostics(df):
 
 
 def theta_scan(df):
-    """Per-path variance N*SE^2 of fixed-theta IS, one curve per scenario."""
     scan = df[df["method"] == SCAN_METHOD].copy()
     ex = pd.DataFrame(list(scan["extra"]), index=scan.index)
     scan["theta"] = ex["theta"]
@@ -147,8 +126,6 @@ def theta_scan(df):
 
 
 def weight_samples(scenario_name, theta):
-    """Deterministic diagnostic draw at the tuned theta: payoffs, weights and
-    knock-in indicators, plus the knock-in rate under P for comparison."""
     sc = SCENARIOS[scenario_name]
     payoff = payoff_for(sc, "call")
     rng = np.random.default_rng(make_seed_seq("importance_diag", zlib.crc32(scenario_name.encode())))

@@ -1,25 +1,4 @@
 """
-Stage 5: master comparison of all five methods (Tamzeed Mahfuz, 2105012).
-
-Plain MC, antithetic, control variate, RQMC (Sobol + Brownian bridge) and
-importance sampling, swept over N_GRID x R=20 on ONE machine, single-threaded.
-This run produces the project's authoritative timings and efficiency table
-(WORKPLAN §1.5: only Stage 5's timings are authoritative).
-
-Barrier family : paper_barrier (B=110.68), deep_barrier (B=140)  — all five methods
-Asian family   : asian_arith (no closed form) — plain, antithetic, control variate, RQMC
-                 paper_asian_geo call — plain, antithetic, RQMC (it HAS a closed
-                 form, so the control variate, whose control would be the option
-                 itself, does not apply; vr_control refuses it by design)
-                 Importance sampling here is a barrier-crossing drift shift; it
-                 is not applied to the Asian options.
-
-Bias and RMSE are measured against the DISCRETELY monitored (252-date) prices,
-never the continuous formula: Stage 4's 64-scramble RQMC references for the
-barriers, the discrete closed form for the geometric Asian, and a 64-scramble
-reference run here for the arithmetic Asian (``tamzeed_master_reference.csv``,
-simulated after the sweep so it cannot disturb the sweep's timings).
-
 Usage
 -----
     OMP_NUM_THREADS=1 python experiments/exp_master.py                  # simulate + analyse
@@ -44,9 +23,9 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import src.vr_control      # noqa: F401  (registers "control_variate")
-import src.vr_importance   # noqa: F401  (registers "importance")
-import src.vr_qmc          # noqa: F401  (registers "rqmc")
+import src.vr_control  
+import src.vr_importance   
+import src.vr_qmc          
 from _stage5_common import (TABLES_DIR, acceptance, cell_table, fmt_ci, references,
                             run_arith_reference, with_references)
 from src.benchmark import ESTIMATORS, exact_price, fit_loglog_slope
@@ -91,16 +70,6 @@ def _seed(scen, opt, method, n_paths, rep):
 
 
 def simulate():
-    """Interleaved sweep: for each (replicate, N) block, every (scenario, method)
-    cell runs once, in a freshly shuffled order.
-
-    ``run_sweep`` runs each method as one contiguous block, so a transient
-    machine slowdown (CPU frequency scaling, background load) lands entirely on
-    whichever method is running — a first attempt at this sweep showed 1.5–2×
-    inflated timings on its first two minutes.  Interleaving spreads any drift
-    evenly over methods, which is what an authoritative efficiency comparison
-    needs.  Prices are unaffected: the seed keys are run_sweep's.
-    """
     # log_result appends, so start from a clean file or re-runs duplicate rows
     (_RESULTS_DIR / f"{PERSON}_{EXPERIMENT_ID}.csv").unlink(missing_ok=True)
     cells = _cells()
@@ -144,7 +113,6 @@ def load_results():
 # ---------------------------------------------------------------------------
 
 def slope_with_ci(sweep, scenario, method, ref, n_boot=2000, seed=402):
-    """RMSE-vs-N log-log slope with a bootstrap CI (resampling replicates per N)."""
     cells = [sweep[(sweep["scenario"] == scenario) & (sweep["method"] == method)
                    & (sweep["n_paths"] == n)]["price"].to_numpy() for n in N_GRID]
 
@@ -161,10 +129,6 @@ def slope_with_ci(sweep, scenario, method, ref, n_boot=2000, seed=402):
 
 
 def time_to_accuracy(table, scenario, method, eps):
-    """Wall-clock seconds for ONE estimate to reach RMSE = eps.
-
-    Fits RMSE(N) = a*N^s and time(N) = c + d*N over N_GRID, solves for N.
-    Returns (seconds, N_needed, extrapolated?)."""
     s = table[(table["scenario"] == scenario) & (table["method"] == method)].sort_values("n_paths")
     if s.empty or s["rmse"].isna().any():
         return (np.nan, np.nan, True)
