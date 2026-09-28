@@ -1,13 +1,3 @@
-"""
-Frozen interface (WORKPLAN §1.4): randomness is ALWAYS passed in as a pre-built
-``normals`` array of shape (n_paths, n_steps), column j == time step j. This lets
-antithetic (pairs [Z, -Z]), RQMC (Sobol + Brownian bridge) and importance
-sampling (shifted drift) all reuse the same engine.
-
-
-
-(The base paper's "Euler" and "Euler–Maruyama" are the same scheme — trap #7.)
-"""
 # GBM path generation COde
 # antithetic (pairs [Z, -Z]), RQMC (Sobol + Brownian bridge) and importance
 # sampling (shifted drift) all **REUSE** the same engine.

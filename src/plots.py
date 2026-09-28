@@ -75,7 +75,7 @@ def ci_vs_n_plot(ax, summary_df, exact, methods, n_col="n_paths",
         ax.axhline(exact, color="black", linestyle="--", linewidth=1, label=exact_label)
     ax.set_xscale("log")
     ax.set_xlabel("Number of paths (N)")
-    ax.set_ylabel("Estimated price")
+    ax.set_ylabel("Estimated Payoff")
     ax.legend(fontsize=8)
 
 
