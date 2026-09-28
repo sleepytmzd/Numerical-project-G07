@@ -1,34 +1,3 @@
-"""
-Stage 4: SDE discretization order (Zaki Rehnoom Unmona, 2105016).
-
-Strong error E|S_T^dt - S_T^exact| and weak error E[f(S^dt)] - E[f(S^exact)] of
-Euler–Maruyama and Milstein, versus dt = T/m for m in STEP_GRID.
-
-Every path is driven by ONE fine Brownian path (FINE_STEPS normals), coarsened
-to each m by summing blocks of normals, so all schemes and all step sizes see
-the same Brownian motion (common random numbers). The exact log-GBM scheme on
-the same grid is the reference: it is exact at the grid points, so a difference
-from it is pure scheme error — for the barrier this also holds the monitoring
-dates fixed, which isolates the scheme effect from the monitoring bias.
-
-CSV (``results/raw/zaki_scheme_order.csv``): one row per (replicate, scheme,
-metric, m) with ``method`` = metric name and ``price`` = that replicate's mean
-of the metric (``std_error`` its i.i.d. SE over the replicate's paths):
-
-    strong_abs_terminal   |S_T^scheme - S_T^exact|               (undiscounted)
-    weak_terminal_mean    S_T^scheme - S_T^exact; exact_price = analytic value
-    weak_call             disc * [call(S^scheme) - call(S^exact)], K=105
-    weak_barrier          disc * [UIC(S^scheme) - UIC(S^exact)], paper barrier
-    price_call / price_barrier   exact-scheme prices (scheme="exact"), for scale
-
-``runtime_sec`` is the path-generation time of that scheme at that m.
-
-Usage
------
-    OMP_NUM_THREADS=1 python experiments/exp_scheme_order.py
-    OMP_NUM_THREADS=1 python experiments/exp_scheme_order.py --analyze-only
-"""
-
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -72,14 +41,12 @@ PAPER_DT = 1 / 252
 # ---------------------------------------------------------------------------
 
 def analytic_terminal_mean_error(m, scenario=SCENARIO):
-    """E[S_T^scheme] - E[S_T] for both schemes: each step factor has mean 1 + r dt
-    (Milstein's correction 0.5 sigma^2 dt (Z^2 - 1) has mean zero)."""
     S0, r, T = scenario.S0, scenario.r, scenario.T
     return S0 * (1 + r * T / m) ** m - S0 * math.exp(r * T)
 
 
 def analytic_second_moment_error(m, scheme, scenario=SCENARIO):
-    """E[(S_T^scheme)^2] - E[S_T^2]; per-step E[F^2] differs between schemes."""
+    # E[(S_T^scheme)^2] - E[S_T^2]; per-step E[F^2] differs between schemes.
     S0, r, sigma, T = scenario.S0, scenario.r, scenario.sigma, scenario.T
     dt = T / m
     step = (1 + r * dt) ** 2 + sigma**2 * dt
@@ -98,8 +65,6 @@ def _coarsen(Zf, m):
 
 
 class _Acc:
-    """Running sum / sum of squares for one metric over a replicate's chunks."""
-
     def __init__(self):
         self.n = 0
         self.s = 0.0
@@ -175,7 +140,6 @@ def load_results():
 # ---------------------------------------------------------------------------
 
 def build_summary(df):
-    """Mean over replicates and its across-replicate SE, per (scheme, metric, m)."""
     rows = []
     for (scheme, metric, m), g in df.groupby(["scheme", "method", "n_steps"]):
         mean = g["price"].mean()
@@ -198,7 +162,7 @@ def _series(summary, scheme, metric):
 
 
 def order_slope(sub):
-    """Log-log slope of |error| vs dt over the statistically resolved points."""
+    # Log-log slope of |error| vs dt over the statistically resolved points.
     sub = sub[sub["resolved"]]
     if len(sub) < 3:
         return float("nan"), 0

@@ -1,23 +1,3 @@
-"""
-Stage 4: randomized QMC vs plain Monte Carlo (Zaki Rehnoom Unmona, 2105016).
-
-Plain MC, RQMC with Brownian-bridge construction ("rqmc") and RQMC with
-incremental construction ("rqmc_incremental") on the geometric Asian call, the
-paper barrier (B=110.6772) and the deep barrier (B=140), across N_GRID x R=20.
-
-Barrier RMSE is measured against the DISCRETELY monitored (252-date) price, not
-the continuous Reiner–Rubinstein formula: the -0.011 monitoring bias would
-otherwise put a floor under the RQMC RMSE and fake a flat slope. That reference
-is estimated here from 64 extra independent bridge scrambles at N=65536 per
-barrier (logged as method "rqmc_reference") and cross-checked against the
-Stage-2 and Stage-3 values.
-
-Usage
------
-    OMP_NUM_THREADS=1 python experiments/exp_qmc.py                 # simulate + analyse
-    OMP_NUM_THREADS=1 python experiments/exp_qmc.py --analyze-only  # analyse only
-"""
-
 import os
 
 os.environ.setdefault("OMP_NUM_THREADS", "1")
@@ -113,7 +93,7 @@ def load_results():
 # ---------------------------------------------------------------------------
 
 def references(df):
-    """{scenario: (reference price, its SE)} — the discrete 252-date target."""
+    # {scenario: (reference price, its SE)} — the discrete 252-date target.
     refs = {"paper_asian_geo": (exact_price(SCENARIOS["paper_asian_geo"], "call", N_STEPS), 0.0)}
     for name in BARRIERS:
         p = df[(df["method"] == REF_METHOD) & (df["scenario"] == name)]["price"]
@@ -132,7 +112,7 @@ def _rmse(prices, ref):
 
 
 def slope_with_ci(sweep, scenario, method, ref, n_boot=2000, seed=402):
-    """RMSE-vs-N log-log slope, with a bootstrap CI from resampling replicates per N."""
+    # RMSE-vs-N log-log slope, with a bootstrap CI from resampling replicates per N.
     cells = [sweep[(sweep["scenario"] == scenario) & (sweep["method"] == method)
                    & (sweep["n_paths"] == n)]["price"].to_numpy() for n in N_GRID]
     x = np.log(N_GRID)
@@ -189,7 +169,6 @@ def build_summary(df, refs):
 
 
 def acceptance(sweep, refs):
-    """§1.7.1 / §1.7.2 for RQMC: one t-interval per cell from its R scrambles."""
     out = []
     tcrit = t_dist.ppf(0.975, R - 1)
     for (scenario, method, n), g in sweep.groupby(["scenario", "method", "n_paths"]):
@@ -203,11 +182,6 @@ def acceptance(sweep, refs):
 
 
 def variance_share(n_steps=N_STEPS):
-    """Share of Var(log S_T) and Var(log G) carried by each Sobol dimension.
-
-    Both are linear in the Brownian path, so the share of dimension k is exact:
-    (c . A[:, k])^2 / sum, with A the map from input normals to W on the grid.
-    """
     shares = {}
     for construction in ("incremental", "bridge"):
         M = np.eye(n_steps) if construction == "incremental" else bridge_matrix(n_steps)
