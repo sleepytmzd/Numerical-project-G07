@@ -1,11 +1,9 @@
-"""Stage 3: control-variate experiments (Aritra Debnath, 2105010).
-
+"""
 Runs plain MC and independently piloted control variates for the arithmetic
 Asian call and for near/deep up-and-in barriers.  It also computes a large
-plain-MC arithmetic-Asian reference because that option has no closed form.
+plain-MC arithmetic-asian reference because that option has no closed form.
 
 Usage
------
     python experiments/exp_control.py
     python experiments/exp_control.py --analyze-only
 """
@@ -31,7 +29,7 @@ from src.config import N_GRID, N_STEPS, R, SCENARIOS
 from src.estimators import make_seed_seq, plain_mc, seed_int
 from src.plots import METHOD_COLORS, apply_style, save_fig
 from src.results import _RESULTS_DIR, load_all_results, log_result
-from src.vr_control import control_variate_mc  # noqa: F401; registers estimator
+from src.vr_control import control_variate_mc  
 
 PERSON = "aritra"
 EXPERIMENT_ID = "control"
@@ -105,7 +103,7 @@ def _extras(rows):
 
 
 def build_summary(df):
-    """One analysis row per scenario and N, keeping precise within-run VRFs."""
+    #One analysis row per scenario and N, keeping precise within-run VRFs.
     rows = []
     sweep = df[df["method"].isin(METHODS)]
     for (scenario, n_paths), group in sweep.groupby(["scenario", "n_paths"]):
