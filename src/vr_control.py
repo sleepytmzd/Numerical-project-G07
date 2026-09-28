@@ -1,11 +1,3 @@
-"""Control-variate estimators for Stage 3.
-
-The arithmetic-Asian estimator uses the discretely sampled geometric Asian as
-its control.  Barrier estimators use the terminal European option.  In both
-cases the control expectation is analytic and the coefficient is fitted on an
-independent pilot sample, keeping the production estimate unbiased.
-"""
-
 import math
 import time
 from dataclasses import replace
@@ -20,7 +12,7 @@ from src.payoffs import geometric_asian_payoff, payoff_for
 
 
 def optimal_coefficient(target_samples, control_samples):
-    """Return ``Cov(Y, X) / Var(X)`` for paired one-dimensional samples."""
+    #Return Cov(Y, X) / Var(X) for paired one-dimensional samples.
     y = np.asarray(target_samples, dtype=float)
     x = np.asarray(control_samples, dtype=float)
     if y.ndim != 1 or x.ndim != 1 or y.shape != x.shape:
@@ -36,34 +28,26 @@ def optimal_coefficient(target_samples, control_samples):
 
 
 def _control_definition(scenario, option, n_steps):
-    """Return ``(control payoff, known discounted mean, label)``."""
+    #Return (control payoff, known discounted mean, label).
     if scenario.exotic_type == "arithmetic_asian":
         geometric_scenario = replace(scenario, exotic_type="geometric_asian")
         mean = exact_price(geometric_scenario, option, n_steps)
-        payoff = lambda paths: geometric_asian_payoff(
-            paths, scenario.K, option=option, avg_start_idx=scenario.avg_start_idx
-        )
+        payoff = lambda paths: geometric_asian_payoff(paths, scenario.K, option=option, avg_start_idx=scenario.avg_start_idx )
         return payoff, float(mean), "geometric_asian"
 
     if scenario.exotic_type == "barrier":
         if option == "call":
-            mean = bs_call(
-                scenario.S0, scenario.K, scenario.r, scenario.sigma, scenario.T
-            )
+            mean = bs_call(scenario.S0, scenario.K, scenario.r, scenario.sigma, scenario.T)
             payoff = lambda paths: np.maximum(paths[:, -1] - scenario.K, 0.0)
         elif option == "put":
-            mean = bs_put(
-                scenario.S0, scenario.K, scenario.r, scenario.sigma, scenario.T
-            )
+            mean = bs_put( scenario.S0, scenario.K, scenario.r, scenario.sigma, scenario.T )
             payoff = lambda paths: np.maximum(scenario.K - paths[:, -1], 0.0)
         else:
             raise ValueError(f"Unsupported option type: {option!r}")
+        
         return payoff, float(mean), "european_terminal"
 
-    raise ValueError(
-        "control_variate supports arithmetic_asian and barrier scenarios, "
-        f"not {scenario.exotic_type!r}"
-    )
+    raise ValueError("control_variate supports arithmetic_asian and barrier scenarios, "f"not {scenario.exotic_type!r}")
 
 
 def _paired_samples(
@@ -76,7 +60,7 @@ def _paired_samples(
     scheme,
     chunk,
 ):
-    """Generate paired discounted target/control samples in bounded memory."""
+    #Generate paired discounted target/control samples in bounded memory.
     target = np.empty(n_paths)
     control = np.empty(n_paths)
     discount = math.exp(-scenario.r * scenario.T)
@@ -106,12 +90,12 @@ def control_variate_mc(
     chunk=DEFAULT_CHUNK,
     **_,
 ):
-    """Monte Carlo with an analytic-mean control and an independent pilot fit.
+    #Monte Carlo with an analytic-mean control and an independent pilot fit.
 
-    ``n_paths`` counts production paths, consistently with the shared estimator
-    interface.  Pilot paths are additional work: they are included in runtime
-    and recorded in ``extra`` as ``pilot_paths`` and ``total_paths_simulated``.
-    """
+    #n_paths counts production paths, consistently with the shared estimator
+    #interface.  Pilot paths are additional work: they are included in runtime
+    #and recorded in extra as pilot_paths and total_paths_simulated.
+
     if n_paths < 2:
         raise ValueError("control_variate_mc needs at least two production paths")
     if chunk < 1:
